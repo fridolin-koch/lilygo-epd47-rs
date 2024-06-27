@@ -1,0 +1,19 @@
+[target.xtensa-esp32s3-none-elf]
+runner = "espflash flash --monitor"
+
+
+[env]
+ESP_LOGLEVEL = "DEBUG"
+
+[build]
+rustflags = [
+    "-C", "link-arg=-nostartfiles",
+]
+
+target = "xtensa-esp32s3-none-elf"
+
+[unstable]
+build-std = ["core", "alloc"]
+
+[profile.release]
+debug = true
