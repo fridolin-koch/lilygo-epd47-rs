@@ -518,10 +518,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
-name = "lilygo_epd47"
+name = "lilygo-epd47"
 version = "0.1.0"
 dependencies = [
- "critical-section",
  "embedded-graphics",
  "embedded-graphics-core",
  "esp-alloc",
@@ -529,6 +528,7 @@ dependencies = [
  "esp-hal",
  "esp-println",
  "log",
+ "tinybmp",
  "u8g2-fonts",
 ]
 
@@ -914,6 +914,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinybmp"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df43af2cb7b369009aa14144959bb4f2720ab62034c9073242f2d3a186c2edb6"
+dependencies = [
+ "embedded-graphics",
+]
+
+[[package]]
 name = "toml_datetime"
 version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,6 +955,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a68775e2131c88974e3cc1da37060559090319ea140746cc1e7e7797646415c0"
 dependencies = [
+ "embedded-graphics",
  "embedded-graphics-core",
 ]
 

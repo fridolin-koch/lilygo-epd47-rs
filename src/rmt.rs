@@ -33,7 +33,7 @@ impl<'a> Rmt<'a> {
             self.clocks,
             None,
         )
-        .map_err(|err| crate::Error::Rmt(err))?;
+        .map_err(crate::Error::Rmt)?;
         let tx_channel = rmt
             .channel1
             .configure(
@@ -47,7 +47,7 @@ impl<'a> Rmt<'a> {
                     ..Default::default()
                 },
             )
-            .map_err(|err| crate::Error::Rmt(err))?;
+            .map_err(crate::Error::Rmt)?;
         self.tx_channel = Some(tx_channel);
         Ok(())
     }
@@ -84,7 +84,7 @@ impl<'a> Rmt<'a> {
             self.tx_channel = Some(
                 tx.wait()
                     .map_err(|(err, _)| err)
-                    .map_err(|err| crate::Error::Rmt(err))?,
+                    .map_err(crate::Error::Rmt)?,
             );
         }
         Ok(())

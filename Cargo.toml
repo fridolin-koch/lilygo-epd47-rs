@@ -1,18 +1,19 @@
 [package]
-name = "lilygo_epd47"
+name = "lilygo-epd47"
 version = "0.1.0"
 authors = ["Frido Koch <info@fridokoch.de>"]
 edition = "2021"
 license = "GPL-3"
+categories = ["embedded", "no-std"]
+readme = "./README.md"
+repository = "https://github.com/fridolin-koch/lilygo-epd47-rs"
+keywords = ["epd", "lilygo", "esp-hal", "ED047TC1", "embedded-graphics"]
 
 [dependencies]
 esp-hal = { version = "0.18.0", features = ["esp32s3", "opsram-8m"] }
-embedded-graphics-core = "0.4.0"
+embedded-graphics-core = { version = "0.4.0", optional = true }
 esp-alloc = "0.4.0"
-# FIXME: still needed?
-critical-section = "1.1.2"
 esp-println = { version = "0.9.1", features = ["esp32s3", "log"] }
-
 [dev-dependencies]
 esp-backtrace = { version = "0.12.0", features = [
     "esp32s3",
@@ -20,13 +21,11 @@ esp-backtrace = { version = "0.12.0", features = [
     "panic-handler",
     "println",
 ] }
-u8g2-fonts = "0.4.0"
+u8g2-fonts = { version = "0.4.0", features = ["embedded_graphics_textstyle"] }
 embedded-graphics = "0.8.1"
 log = { version = "0.4.21" }
 
-
-
-
+tinybmp = { version = "0.6.0" }
 [profile.dev]
 # Rust debug is too slow.
 # For debug builds always builds with some optimization
@@ -40,3 +39,8 @@ incremental = false
 lto = 'fat'
 opt-level = 's'
 overflow-checks = false
+
+[features]
+default = ["embedded-graphics"]
+
+embedded-graphics = ["embedded-graphics-core"]

@@ -15,9 +15,8 @@ TBD
 ## Todos
 
 - [ ] Basic examples and docs
-- [ ] Analyse performance
+- [ ] Compare performance to original implementation
 - [ ] Implement Waveforms / LUT
-- [ ] Touch Support
 
 ## Credits
 
@@ -29,3 +28,4 @@ This project is largely based on the C implementations provided by:
 ## License
 
 Unless otherwise stated the provided code is licensed under the terms of the GNU General Public License v3.0.
+

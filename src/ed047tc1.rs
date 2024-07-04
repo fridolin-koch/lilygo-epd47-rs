@@ -1,5 +1,5 @@
+use crate::rmt;
 use core::ptr::addr_of_mut;
-
 use esp_hal::clock::Clocks;
 use esp_hal::gpio::{GpioPin, Io, Level, Output, OutputPin};
 use esp_hal::lcd_cam::lcd::i8080;
@@ -7,32 +7,6 @@ use esp_hal::lcd_cam::LcdCam;
 use esp_hal::peripheral::Peripheral;
 use esp_hal::prelude::_fugit_RateExtU32;
 use esp_hal::{dma, peripherals};
-
-use crate::{rmt, BYTES_PER_LINE};
-
-/*
-/* Config Reggister Control */
-#define CFG_DATA GPIO_NUM_13
-#define CFG_CLK GPIO_NUM_12
-#define CFG_STR GPIO_NUM_0
-
-/* Control Lines */
-#define CKV GPIO_NUM_38
-#define STH GPIO_NUM_40
-
-/* Edges */
-#define CKH GPIO_NUM_41
-
-/* Data Lines */
-#define D7 GPIO_NUM_7
-#define D6 GPIO_NUM_6
-#define D5 GPIO_NUM_5
-#define D4 GPIO_NUM_4
-#define D3 GPIO_NUM_3
-#define D2 GPIO_NUM_2
-#define D1 GPIO_NUM_1
-#define D0 GPIO_NUM_8
- */
 
 static mut TX_DESCRIPTORS: [dma::DmaDescriptor; 1] = [dma::DmaDescriptor::EMPTY; 1];
 static mut RX_DESCRIPTORS: [dma::DmaDescriptor; 0] = [dma::DmaDescriptor::EMPTY; 0];
@@ -50,7 +24,7 @@ struct ConfigRegister {
     pos_power_enable: bool,
     neg_power_enable: bool,
     stv: bool,
-    scan_direction: bool,
+    power_enable: bool, // scan_direction, see https://github.com/vroland/epdiy/blob/main/src/board/epd_board_lilygo_t5_47.c#L199
     mode: bool,
     output_enable: bool,
 }
@@ -63,7 +37,7 @@ impl Default for ConfigRegister {
             pos_power_enable: false,
             neg_power_enable: false,
             stv: true,
-            scan_direction: true,
+            power_enable: true,
             mode: false,
             output_enable: false,
         }
@@ -105,7 +79,7 @@ where
         self.pin_str.set_low();
         self.write_bool(self.config.output_enable);
         self.write_bool(self.config.mode);
-        self.write_bool(self.config.scan_direction);
+        self.write_bool(self.config.power_enable);
         self.write_bool(self.config.stv);
         self.write_bool(self.config.neg_power_enable);
         self.write_bool(self.config.pos_power_enable);
@@ -196,17 +170,17 @@ impl<'a> ED047TC1<'a> {
                     cd_data_edge: false,  // dc_data_level
                     ..Default::default()
                 },
-                &clocks,
+                clocks,
             )
             .with_ctrl_pins(io.pins.gpio40, io.pins.gpio41),
             cfg_writer,
-            rmt: rmt::Rmt::new(rmt, &clocks),
+            rmt: rmt::Rmt::new(rmt, clocks),
         };
         ctrl
     }
 
     pub(crate) fn power_on(&mut self) {
-        self.cfg_writer.config.scan_direction = true;
+        self.cfg_writer.config.power_enable = true;
         self.cfg_writer.config.power_disable = false;
         self.cfg_writer.write();
         busy_delay(100 * 240);
@@ -220,8 +194,8 @@ impl<'a> ED047TC1<'a> {
         self.cfg_writer.write();
     }
 
-    // FIXME: check epdiy regarding correct poweroff sequence
     pub(crate) fn power_off(&mut self) {
+        self.cfg_writer.config.power_enable = false;
         self.cfg_writer.config.pos_power_enable = false;
         self.cfg_writer.write();
         busy_delay(10 * 240);
@@ -229,7 +203,8 @@ impl<'a> ED047TC1<'a> {
         self.cfg_writer.write();
         busy_delay(100 * 240);
         self.cfg_writer.config.power_disable = true;
-        self.cfg_writer.write();
+        self.cfg_writer.config.mode = false;
+        //self.cfg_writer.write();
         self.cfg_writer.config.stv = false;
         self.cfg_writer.write();
     }
@@ -276,11 +251,8 @@ impl<'a> ED047TC1<'a> {
         self.latch_row();
         self.rmt.pulse(output_time, 50, false)?;
         let buf = dma_buffer();
-        let tx = self
-            .i8080
-            .send_dma(0, 0, &buf)
-            .map_err(|err| crate::Error::Dma(err))?;
-        tx.wait().map_err(|err| crate::Error::Dma(err))?;
+        let tx = self.i8080.send_dma(0, 0, &buf).map_err(crate::Error::Dma)?;
+        tx.wait().map_err(crate::Error::Dma)?;
 
         Ok(())
     }
@@ -298,7 +270,7 @@ impl<'a> ED047TC1<'a> {
 
     pub(crate) fn set_buffer(&self, data: &[u8]) {
         let buffer = dma_buffer();
-        buffer[..BYTES_PER_LINE].copy_from_slice(data);
+        buffer[..data.len()].copy_from_slice(data);
     }
 }
 
