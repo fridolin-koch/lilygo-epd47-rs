@@ -4,22 +4,29 @@
 extern crate alloc;
 extern crate lilygo_epd47;
 
-use embedded_graphics::image::Image;
-use embedded_graphics::prelude::*;
 use embedded_graphics::{
+    image::Image,
+    prelude::*,
     primitives::{
-        Circle, PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StrokeAlignment, Triangle,
+        Circle,
+        PrimitiveStyle,
+        PrimitiveStyleBuilder,
+        Rectangle,
+        StrokeAlignment,
+        Triangle,
     },
     text::{Alignment, Text},
 };
 use embedded_graphics_core::pixelcolor::{Gray4, GrayColor};
 use esp_backtrace as _;
-use esp_hal::clock::ClockControl;
-use esp_hal::delay::Delay;
-use esp_hal::gpio::Io;
-use esp_hal::peripherals::Peripherals;
-use esp_hal::prelude::*;
-use esp_hal::system::SystemControl;
+use esp_hal::{
+    clock::ClockControl,
+    delay::Delay,
+    gpio::Io,
+    peripherals::Peripherals,
+    prelude::*,
+    system::SystemControl,
+};
 use esp_println::println;
 use lilygo_epd47::{Display, DrawMode};
 use tinybmp::Bmp;

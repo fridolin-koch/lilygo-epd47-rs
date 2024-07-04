@@ -6,12 +6,14 @@
 extern crate lilygo_epd47;
 
 use esp_backtrace as _;
-use esp_hal::clock::ClockControl;
-use esp_hal::delay::Delay;
-use esp_hal::gpio::Io;
-use esp_hal::peripherals::Peripherals;
-use esp_hal::prelude::*;
-use esp_hal::system::SystemControl;
+use esp_hal::{
+    clock::ClockControl,
+    delay::Delay,
+    gpio::Io,
+    peripherals::Peripherals,
+    prelude::*,
+    system::SystemControl,
+};
 use lilygo_epd47::Display;
 
 #[entry]

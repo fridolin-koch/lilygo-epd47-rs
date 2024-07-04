@@ -1,12 +1,16 @@
-use crate::rmt;
 use core::ptr::addr_of_mut;
-use esp_hal::clock::Clocks;
-use esp_hal::gpio::{GpioPin, Io, Level, Output, OutputPin};
-use esp_hal::lcd_cam::lcd::i8080;
-use esp_hal::lcd_cam::LcdCam;
-use esp_hal::peripheral::Peripheral;
-use esp_hal::prelude::_fugit_RateExtU32;
-use esp_hal::{dma, peripherals};
+
+use esp_hal::{
+    clock::Clocks,
+    dma,
+    gpio::{GpioPin, Io, Level, Output, OutputPin},
+    lcd_cam::{lcd::i8080, LcdCam},
+    peripheral::Peripheral,
+    peripherals,
+    prelude::_fugit_RateExtU32,
+};
+
+use crate::rmt;
 
 static mut TX_DESCRIPTORS: [dma::DmaDescriptor; 1] = [dma::DmaDescriptor::EMPTY; 1];
 static mut RX_DESCRIPTORS: [dma::DmaDescriptor; 0] = [dma::DmaDescriptor::EMPTY; 0];
@@ -24,7 +28,7 @@ struct ConfigRegister {
     pos_power_enable: bool,
     neg_power_enable: bool,
     stv: bool,
-    power_enable: bool, // scan_direction, see https://github.com/vroland/epdiy/blob/main/src/board/epd_board_lilygo_t5_47.c#L199
+    power_enable: bool, /* scan_direction, see https://github.com/vroland/epdiy/blob/main/src/board/epd_board_lilygo_t5_47.c#L199 */
     mode: bool,
     output_enable: bool,
 }
@@ -204,7 +208,7 @@ impl<'a> ED047TC1<'a> {
         busy_delay(100 * 240);
         self.cfg_writer.config.power_disable = true;
         self.cfg_writer.config.mode = false;
-        //self.cfg_writer.write();
+        // self.cfg_writer.write();
         self.cfg_writer.config.stv = false;
         self.cfg_writer.write();
     }
@@ -217,7 +221,7 @@ impl<'a> ED047TC1<'a> {
 
         self.cfg_writer.config.stv = false;
         self.cfg_writer.write();
-        //busy_delay(240);
+        // busy_delay(240);
         self.rmt.pulse(10000, 1000, false)?;
         self.cfg_writer.config.stv = true;
         self.cfg_writer.write();

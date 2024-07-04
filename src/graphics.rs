@@ -1,8 +1,6 @@
-use crate::display::Display;
-use crate::Error;
-use embedded_graphics_core::pixelcolor::Gray4;
-use embedded_graphics_core::prelude::*;
-use esp_println::println;
+use embedded_graphics_core::{pixelcolor::Gray4, prelude::*};
+
+use crate::{display::Display, Error};
 
 impl<'a> DrawTarget for Display<'a> {
     type Color = Gray4;

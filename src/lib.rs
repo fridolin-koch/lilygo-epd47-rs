@@ -1,16 +1,15 @@
 //! Simple driver for the LilyGo T5 4.7 inch E-Ink Display.
 //! The driver only supports the V2.3 hardware variant (ESP32-S3)
 //!
-//! This library depends on alloc and requires you to set up an global allocator for the PSRAM.
+//! This library depends on alloc and requires you to set up an global allocator
+//! for the PSRAM.
 //!
 //!
 //! Built using [`esp-hal`] and [`embedded-graphics`]
 //!
 //! [`esp-hal`]: https://github.com/esp-rs/esp-hal
 //! [`embedded-graphics`]: https://docs.rs/embedded-graphics/
-//!
 
-//!
 //! # Example
 //!
 //! Simple example that draws a circle to the screen

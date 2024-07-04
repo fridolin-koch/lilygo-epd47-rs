@@ -1,12 +1,8 @@
+use alloc::{boxed::Box, vec, vec::Vec};
+
+use esp_hal::{clock::Clocks, delay::Delay, gpio::Io, peripheral::Peripheral, peripherals};
+
 use crate::{ed047tc1, Error, Result};
-use alloc::boxed::Box;
-use alloc::vec;
-use alloc::vec::Vec;
-use esp_hal::clock::Clocks;
-use esp_hal::delay::Delay;
-use esp_hal::gpio::Io;
-use esp_hal::peripheral::Peripheral;
-use esp_hal::peripherals;
 
 const CONTRAST_CYCLES_4BPP: &[u16; 15] = &[
     30, 30, 20, 20, 30, 30, 30, 40, 40, 50, 50, 50, 100, 200, 300,
@@ -95,8 +91,9 @@ impl<'a> Display<'a> {
 
     /// Sets a single pixel in the framebuffer without updating the display.
     ///
-    /// If the provided coordinates are outside the screen, this method returns [Error::OutOfBounds].
-    /// If the provided color is greater than 0x0F, this method returns [Error::InvalidColor].
+    /// If the provided coordinates are outside the screen, this method returns
+    /// [Error::OutOfBounds]. If the provided color is greater than 0x0F,
+    /// this method returns [Error::InvalidColor].
     pub fn set_pixel(&mut self, x: u16, y: u16, color: u8) -> Result<()> {
         if x > Self::WIDTH || y > Self::HEIGHT {
             return Err(Error::OutOfBounds);
@@ -128,8 +125,9 @@ impl<'a> Display<'a> {
         Ok(())
     }
 
-    /// Flush updates the display with the contents of the framebuffer. The method clears the framebuffer.
-    /// The provided mode should match the contents of your framebuffer.
+    /// Flush updates the display with the contents of the framebuffer. The
+    /// method clears the framebuffer. The provided mode should match the
+    /// contents of your framebuffer.
     pub fn flush(&mut self, mode: DrawMode) -> Result<()> {
         self.draw(mode)?;
         self.tainted_rows.fill(0);
@@ -282,7 +280,8 @@ impl<'a> Display<'a> {
 fn line_buffer_reorder(data: &mut [u8]) {
     // Iterate over the data in chunks of 4 bytes (size of a u32)
     for chunk in data.chunks_exact_mut(4) {
-        // Convert the 4-byte chunk to a u32, swap the high and low 16 bits, and then write it back
+        // Convert the 4-byte chunk to a u32, swap the high and low 16 bits, and then
+        // write it back
         let val = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
         let swapped = (val >> 16) | ((val & 0x0000FFFF) << 16);
         chunk.copy_from_slice(&swapped.to_le_bytes());

@@ -1,11 +1,16 @@
 use core::ops::DerefMut;
 
-use esp_hal::clock::Clocks;
-use esp_hal::gpio::GpioPin;
-use esp_hal::peripheral::{Peripheral, PeripheralRef};
-use esp_hal::prelude::*;
-use esp_hal::rmt::{Channel, PulseCode, TxChannel, TxChannelCreator};
-use esp_hal::{into_ref, peripherals, rmt, Blocking};
+use esp_hal::{
+    clock::Clocks,
+    gpio::GpioPin,
+    into_ref,
+    peripheral::{Peripheral, PeripheralRef},
+    peripherals,
+    prelude::*,
+    rmt,
+    rmt::{Channel, PulseCode, TxChannel, TxChannelCreator},
+    Blocking,
+};
 
 pub(crate) struct Rmt<'a> {
     tx_channel: Option<Channel<Blocking, 1>>,
@@ -74,12 +79,13 @@ impl<'a> Rmt<'a> {
                     length2: 0,
                 },
                 // FIXME: find more elegant solution
-                PulseCode::default(), // end of pulse indicator (redundant, but simplifies the code)
+                PulseCode::default(), /* end of pulse indicator (redundant, but simplifies the
+                                       * code) */
             ]
         };
         let tx = tx_channel.transmit(&data);
-        // FIXME: This is the culprit.. We need the channel later again but can't wait due to some
-        // time sensitive operations. Not sure how to solve this
+        // FIXME: This is the culprit.. We need the channel later again but can't wait
+        // due to some time sensitive operations. Not sure how to solve this
         if wait {
             self.tx_channel = Some(
                 tx.wait()
