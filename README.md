@@ -1,5 +1,7 @@
 # LilyGo EPD47 Rust HAL
 
+![Demo](_docs/hello-world.jpg)
+
 Simple driver for
 the [LilyGo T5 4.7 Inch E-Paper display](https://www.lilygo.cc/en-pl/products/t5-4-7-inch-e-paper-v2-3).
 The driver only supports the V2.3 hardware variant (ESP32-S3).
