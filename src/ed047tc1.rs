@@ -41,7 +41,7 @@ impl Default for ConfigRegister {
             pos_power_enable: false,
             neg_power_enable: false,
             stv: true,
-            power_enable: true,
+            power_enable: false,
             mode: false,
             output_enable: false,
         }
