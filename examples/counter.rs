@@ -40,7 +40,8 @@ fn main() -> ! {
         peripherals.LCD_CAM,
         peripherals.RMT,
         &clocks,
-    );
+    )
+    .unwrap();
 
     let delay = Delay::new(&clocks);
 

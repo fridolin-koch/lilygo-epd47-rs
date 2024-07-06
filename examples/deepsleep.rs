@@ -63,7 +63,8 @@ fn main() -> ! {
         peripherals.LCD_CAM,
         peripherals.RMT,
         &clocks,
-    );
+    )
+    .unwrap();
 
     let mut delay = Delay::new(&clocks);
     let mut rtc = Rtc::new(peripherals.LPWR, None);

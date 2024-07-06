@@ -35,7 +35,8 @@ fn main() -> ! {
         peripherals.LCD_CAM,
         peripherals.RMT,
         &clocks,
-    );
+    )
+    .unwrap();
     // Turn the display on
     display.power_on();
     delay.delay_millis(10);

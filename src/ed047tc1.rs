@@ -13,7 +13,6 @@ use esp_hal::{
 use crate::rmt;
 
 static mut TX_DESCRIPTORS: [dma::DmaDescriptor; 1] = [dma::DmaDescriptor::EMPTY; 1];
-static mut RX_DESCRIPTORS: [dma::DmaDescriptor; 0] = [dma::DmaDescriptor::EMPTY; 0];
 
 const DMA_BUFFER_SIZE: usize = 248;
 
@@ -120,7 +119,7 @@ pub(crate) struct ED047TC1<'a> {
         >,
     >,
     cfg_writer: ConfigWriter<'a, GpioPin<13>, GpioPin<12>, GpioPin<0>>,
-    rmt: rmt::Rmt<'a>,
+    rmt: rmt::Rmt,
 }
 
 impl<'a> ED047TC1<'a> {
@@ -130,7 +129,7 @@ impl<'a> ED047TC1<'a> {
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
         clocks: &'a Clocks,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         // configure data pins
         let tx_pins = i8080::TxEightBits::new(
             io.pins.gpio6,
@@ -145,14 +144,7 @@ impl<'a> ED047TC1<'a> {
 
         // configure dma
         let dma = dma::Dma::new(dma);
-        let channel = unsafe {
-            dma.channel0.configure(
-                false,
-                &mut *addr_of_mut!(TX_DESCRIPTORS),
-                &mut *addr_of_mut!(RX_DESCRIPTORS),
-                dma::DmaPriority::Priority0,
-            )
-        };
+        let channel = dma.channel0.configure(false, dma::DmaPriority::Priority0);
 
         // init lcd
         let lcd_cam = LcdCam::new(lcd_cam);
@@ -161,10 +153,11 @@ impl<'a> ED047TC1<'a> {
         let mut cfg_writer = ConfigWriter::new(io.pins.gpio13, io.pins.gpio12, io.pins.gpio0);
         cfg_writer.write();
 
-        let ctrl = ED047TC1 {
+        Ok(ED047TC1 {
             i8080: i8080::I8080::new(
                 lcd_cam.lcd,
                 channel.tx,
+                unsafe { &mut *addr_of_mut!(TX_DESCRIPTORS) },
                 tx_pins,
                 10.MHz(),
                 i8080::Config {
@@ -178,9 +171,8 @@ impl<'a> ED047TC1<'a> {
             )
             .with_ctrl_pins(io.pins.gpio40, io.pins.gpio41),
             cfg_writer,
-            rmt: rmt::Rmt::new(rmt, clocks),
-        };
-        ctrl
+            rmt: rmt::Rmt::new(io.pins.gpio38, rmt, clocks)?,
+        })
     }
 
     pub(crate) fn power_on(&mut self) {

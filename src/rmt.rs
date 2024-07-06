@@ -1,10 +1,7 @@
-use core::ops::DerefMut;
-
 use esp_hal::{
     clock::Clocks,
-    gpio::GpioPin,
-    into_ref,
-    peripheral::{Peripheral, PeripheralRef},
+    gpio::OutputPin,
+    peripheral::Peripheral,
     peripherals,
     prelude::*,
     rmt,
@@ -12,37 +9,22 @@ use esp_hal::{
     Blocking,
 };
 
-pub(crate) struct Rmt<'a> {
+pub(crate) struct Rmt {
     tx_channel: Option<Channel<Blocking, 1>>,
-    clocks: &'a Clocks<'a>,
-    rmt: PeripheralRef<'a, peripherals::RMT>,
 }
 
-impl<'a> Rmt<'a> {
-    pub(crate) fn new(rmt: impl Peripheral<P = peripherals::RMT> + 'a, clocks: &'a Clocks) -> Self {
-        into_ref!(rmt);
-        Rmt {
-            tx_channel: None,
-            clocks,
-            rmt,
-        }
-    }
-
-    fn ensure_channel(&mut self) -> Result<(), crate::Error> {
-        if self.tx_channel.is_some() {
-            return Ok(());
-        }
-        let rmt = rmt::Rmt::new(
-            unsafe { self.rmt.deref_mut().clone_unchecked() }, // TODO: find better solution
-            80.MHz(),
-            self.clocks,
-            None,
-        )
-        .map_err(crate::Error::Rmt)?;
+impl Rmt {
+    pub(crate) fn new(
+        pin: impl Peripheral<P = impl OutputPin>,
+        rmt: impl Peripheral<P = peripherals::RMT>,
+        clocks: &Clocks,
+    ) -> Result<Self, crate::Error> {
+        //  into_ref!(rmt);
+        let rmt = rmt::Rmt::new(rmt, 80.MHz(), clocks, None).map_err(crate::Error::Rmt)?;
         let tx_channel = rmt
             .channel1
             .configure(
-                unsafe { GpioPin::<38>::steal() }, // TODO: find better solution
+                pin,
                 rmt::TxChannelConfig {
                     clk_divider: 8,
                     idle_output_level: false,
@@ -53,13 +35,15 @@ impl<'a> Rmt<'a> {
                 },
             )
             .map_err(crate::Error::Rmt)?;
-        self.tx_channel = Some(tx_channel);
-        Ok(())
+        Ok(Rmt {
+            tx_channel: Some(tx_channel),
+        })
     }
 
     pub(crate) fn pulse(&mut self, high: u16, low: u16, wait: bool) -> Result<(), crate::Error> {
-        self.ensure_channel()?;
-        let tx_channel = self.tx_channel.take().ok_or(crate::Error::Unknown)?;
+        let tx_channel = self.tx_channel.take().unwrap();
+        while tx_channel.is_busy() {}
+
         let data = if high > 0 {
             [
                 PulseCode {
@@ -83,16 +67,19 @@ impl<'a> Rmt<'a> {
                                        * code) */
             ]
         };
-        let tx = tx_channel.transmit(&data);
-        // FIXME: This is the culprit.. We need the channel later again but can't wait
-        // due to some time sensitive operations. Not sure how to solve this
-        if wait {
-            self.tx_channel = Some(
-                tx.wait()
-                    .map_err(|(err, _)| err)
-                    .map_err(crate::Error::Rmt)?,
-            );
-        }
+        let tx = tx_channel
+            .transmit_single_block(&data)
+            .map_err(|(err, _)| err)
+            .map_err(crate::Error::Rmt)?;
+
+        let result = if wait { tx.wait() } else { tx.no_wait() };
+        match result {
+            Err((error, channel)) => {
+                self.tx_channel = Some(channel);
+                return Err(crate::Error::Rmt(error));
+            }
+            Ok(channel) => self.tx_channel = Some(channel),
+        };
         Ok(())
     }
 }
