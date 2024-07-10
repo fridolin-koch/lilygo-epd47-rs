@@ -14,7 +14,7 @@ use esp_hal::{
     prelude::*,
     system::SystemControl,
 };
-use lilygo_epd47::Display;
+use lilygo_epd47::{pin_config, Display};
 
 #[entry]
 fn main() -> ! {
@@ -29,7 +29,7 @@ fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
     let mut display = Display::new(
-        io,
+        pin_config!(io),
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,

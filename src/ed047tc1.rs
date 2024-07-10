@@ -3,7 +3,7 @@ use core::ptr::addr_of_mut;
 use esp_hal::{
     clock::Clocks,
     dma,
-    gpio::{GpioPin, Io, Level, Output, OutputPin},
+    gpio::{GpioPin, Level, Output, OutputPin},
     lcd_cam::{lcd::i8080, LcdCam},
     peripheral::Peripheral,
     peripherals,
@@ -103,6 +103,23 @@ where
     }
 }
 
+pub struct PinConfig {
+    pub data0: GpioPin<6>,
+    pub data1: GpioPin<7>,
+    pub data2: GpioPin<4>,
+    pub data3: GpioPin<5>,
+    pub data4: GpioPin<2>,
+    pub data5: GpioPin<3>,
+    pub data6: GpioPin<8>,
+    pub data7: GpioPin<1>,
+    pub cfg_data: GpioPin<13>,
+    pub cfg_clk: GpioPin<12>,
+    pub cfg_str: GpioPin<0>,
+    pub lcd_dc: GpioPin<40>,
+    pub lcd_wrx: GpioPin<41>,
+    pub rmt: GpioPin<38>,
+}
+
 pub(crate) struct ED047TC1<'a> {
     i8080: i8080::I8080<
         'a,
@@ -125,7 +142,7 @@ pub(crate) struct ED047TC1<'a> {
 
 impl<'a> ED047TC1<'a> {
     pub(crate) fn new(
-        io: Io,
+        pins: PinConfig,
         dma: impl Peripheral<P = peripherals::DMA> + 'a,
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
@@ -133,14 +150,8 @@ impl<'a> ED047TC1<'a> {
     ) -> Self {
         // configure data pins
         let tx_pins = i8080::TxEightBits::new(
-            io.pins.gpio6,
-            io.pins.gpio7,
-            io.pins.gpio4,
-            io.pins.gpio5,
-            io.pins.gpio2,
-            io.pins.gpio3,
-            io.pins.gpio8,
-            io.pins.gpio1,
+            pins.data0, pins.data1, pins.data2, pins.data3, pins.data4, pins.data5, pins.data6,
+            pins.data7,
         );
 
         // configure dma
@@ -158,7 +169,7 @@ impl<'a> ED047TC1<'a> {
         let lcd_cam = LcdCam::new(lcd_cam);
 
         // init panel config writer (?)
-        let mut cfg_writer = ConfigWriter::new(io.pins.gpio13, io.pins.gpio12, io.pins.gpio0);
+        let mut cfg_writer = ConfigWriter::new(pins.cfg_data, pins.cfg_clk, pins.cfg_str);
         cfg_writer.write();
 
         let ctrl = ED047TC1 {
@@ -176,7 +187,7 @@ impl<'a> ED047TC1<'a> {
                 },
                 clocks,
             )
-            .with_ctrl_pins(io.pins.gpio40, io.pins.gpio41),
+            .with_ctrl_pins(pins.lcd_dc, pins.lcd_wrx),
             cfg_writer,
             rmt: rmt::Rmt::new(rmt, clocks),
         };

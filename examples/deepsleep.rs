@@ -28,7 +28,7 @@ use esp_hal::{
     system::SystemControl,
     Cpu,
 };
-use lilygo_epd47::{Display, DrawMode};
+use lilygo_epd47::{pin_config, Display, DrawMode};
 use u8g2_fonts::FontRenderer;
 
 static FONT: FontRenderer = FontRenderer::new::<u8g2_fonts::fonts::u8g2_font_spleen16x32_mr>();
@@ -58,7 +58,7 @@ fn main() -> ! {
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 
     let mut display = Display::new(
-        io,
+        pin_config!(io),
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,

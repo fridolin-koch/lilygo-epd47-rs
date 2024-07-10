@@ -18,7 +18,7 @@ use esp_hal::{
     prelude::*,
     system::SystemControl,
 };
-use lilygo_epd47::{Display, DrawMode};
+use lilygo_epd47::{pin_config, Display, DrawMode};
 
 #[entry]
 fn main() -> ! {
@@ -26,11 +26,12 @@ fn main() -> ! {
     let system = SystemControl::new(peripherals.SYSTEM);
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
     let delay = Delay::new(&clocks);
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
     // Initialise the display
     let mut display = Display::new(
-        Io::new(peripherals.GPIO, peripherals.IO_MUX),
+        pin_config!(io),
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,

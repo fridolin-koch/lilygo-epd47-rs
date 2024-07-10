@@ -1,6 +1,6 @@
 use alloc::{boxed::Box, vec, vec::Vec};
 
-use esp_hal::{clock::Clocks, delay::Delay, gpio::Io, peripheral::Peripheral, peripherals};
+use esp_hal::{clock::Clocks, delay::Delay, peripheral::Peripheral, peripherals};
 
 use crate::{ed047tc1, Error, Result};
 
@@ -45,6 +45,7 @@ const TAINTED_ROWS_SIZE: usize = Display::HEIGHT as usize / 8 + 1;
 const FRAMEBUFFER_SIZE: usize = (Display::WIDTH / 2) as usize * Display::HEIGHT as usize;
 const BYTES_PER_LINE: usize = Display::WIDTH as usize / 4;
 const LINE_BYTES_4BPP: usize = Display::WIDTH as usize / 2;
+
 pub struct Display<'a> {
     epd: ed047tc1::ED047TC1<'a>,
     skipping: u8,
@@ -65,14 +66,14 @@ impl<'a> Display<'a> {
         height: Self::HEIGHT,
     };
     pub fn new(
-        io: Io,
+        pins: ed047tc1::PinConfig,
         dma: impl Peripheral<P = peripherals::DMA> + 'a,
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
         clocks: &'a Clocks,
     ) -> Self {
         Display {
-            epd: ed047tc1::ED047TC1::new(io, dma, lcd_cam, rmt, clocks),
+            epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt, clocks),
             skipping: 0,
             framebuffer: Box::new([0xFF; FRAMEBUFFER_SIZE]),
             tainted_rows: [0; TAINTED_ROWS_SIZE],
