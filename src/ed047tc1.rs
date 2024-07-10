@@ -147,7 +147,7 @@ impl<'a> ED047TC1<'a> {
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
         clocks: &'a Clocks,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         // configure data pins
         let tx_pins = i8080::TxEightBits::new(
             pins.data0, pins.data1, pins.data2, pins.data3, pins.data4, pins.data5, pins.data6,
@@ -172,7 +172,7 @@ impl<'a> ED047TC1<'a> {
         let mut cfg_writer = ConfigWriter::new(pins.cfg_data, pins.cfg_clk, pins.cfg_str);
         cfg_writer.write();
 
-        let ctrl = ED047TC1 {
+        Ok(ED047TC1 {
             i8080: i8080::I8080::new(
                 lcd_cam.lcd,
                 channel.tx,
@@ -189,9 +189,8 @@ impl<'a> ED047TC1<'a> {
             )
             .with_ctrl_pins(pins.lcd_dc, pins.lcd_wrx),
             cfg_writer,
-            rmt: rmt::Rmt::new(rmt, clocks),
-        };
-        ctrl
+            rmt: rmt::Rmt::new(pins.rmt, rmt, clocks)?,
+        })
     }
 
     pub(crate) fn power_on(&mut self) {

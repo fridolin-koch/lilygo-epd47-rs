@@ -1,48 +1,58 @@
-use core::ops::DerefMut;
+use alloc::sync::Arc;
+use core::{mem, ops::DerefMut};
 
 use esp_hal::{
     clock::Clocks,
-    gpio::GpioPin,
+    gpio::{GpioPin, OutputPin},
     into_ref,
     peripheral::{Peripheral, PeripheralRef},
     peripherals,
     prelude::*,
     rmt,
-    rmt::{Channel, PulseCode, TxChannel, TxChannelCreator},
+    rmt::{Channel, Error, PulseCode, SingleShotTxTransaction, TxChannel, TxChannelCreator},
     Blocking,
 };
 
+#[derive(Default)]
+enum TxChannelContainer<'a, C>
+where
+    C: TxChannel,
+{
+    #[default]
+    None,
+    Channel(C),
+    Tx(SingleShotTxTransaction<'a, C, PulseCode>),
+}
+
+impl<'a, C> TxChannelContainer<'a, C>
+where
+    C: TxChannel,
+{
+    fn take(&mut self) -> Result<C, (rmt::Error, C)> {
+        match mem::take(self) {
+            Self::None => panic!("very broken"),
+            Self::Channel(ch) => Ok(ch),
+            Self::Tx(tx) => tx.wait(),
+        }
+    }
+}
+
 pub(crate) struct Rmt<'a> {
-    tx_channel: Option<Channel<Blocking, 1>>,
-    clocks: &'a Clocks<'a>,
-    rmt: PeripheralRef<'a, peripherals::RMT>,
+    tx_channel: TxChannelContainer<'a, Channel<Blocking, 1>>,
+    data: [PulseCode; 2],
 }
 
 impl<'a> Rmt<'a> {
-    pub(crate) fn new(rmt: impl Peripheral<P = peripherals::RMT> + 'a, clocks: &'a Clocks) -> Self {
-        into_ref!(rmt);
-        Rmt {
-            tx_channel: None,
-            clocks,
-            rmt,
-        }
-    }
-
-    fn ensure_channel(&mut self) -> Result<(), crate::Error> {
-        if self.tx_channel.is_some() {
-            return Ok(());
-        }
-        let rmt = rmt::Rmt::new(
-            unsafe { self.rmt.deref_mut().clone_unchecked() }, // TODO: find better solution
-            80.MHz(),
-            self.clocks,
-            None,
-        )
-        .map_err(crate::Error::Rmt)?;
+    pub(crate) fn new(
+        pin: impl Peripheral<P = impl OutputPin> + 'a,
+        rmt: impl Peripheral<P = peripherals::RMT> + 'a,
+        clocks: &'a Clocks,
+    ) -> Result<Self, crate::Error> {
+        let rmt = rmt::Rmt::new(rmt, 80.MHz(), clocks, None).map_err(crate::Error::Rmt)?;
         let tx_channel = rmt
             .channel1
             .configure(
-                unsafe { GpioPin::<38>::steal() }, // TODO: find better solution
+                pin,
                 rmt::TxChannelConfig {
                     clk_divider: 8,
                     idle_output_level: false,
@@ -53,46 +63,58 @@ impl<'a> Rmt<'a> {
                 },
             )
             .map_err(crate::Error::Rmt)?;
-        self.tx_channel = Some(tx_channel);
-        Ok(())
+        Ok(Rmt {
+            tx_channel: TxChannelContainer::Channel(tx_channel),
+            data: [PulseCode::default(); 2],
+        })
     }
 
-    pub(crate) fn pulse(&mut self, high: u16, low: u16, wait: bool) -> Result<(), crate::Error> {
-        self.ensure_channel()?;
-        let tx_channel = self.tx_channel.take().ok_or(crate::Error::Unknown)?;
-        let data = if high > 0 {
-            [
-                PulseCode {
-                    level1: true,
-                    length1: high,
-                    level2: false,
-                    length2: low,
-                },
-                PulseCode::default(), // end of pulse indicator
-            ]
-        } else {
-            [
-                PulseCode {
-                    level1: true,
-                    length1: low,
-                    level2: false,
-                    length2: 0,
-                },
-                // FIXME: find more elegant solution
-                PulseCode::default(), /* end of pulse indicator (redundant, but simplifies the
-                                       * code) */
-            ]
+    pub(crate) fn pulse(mut self, high: u16, low: u16, wait: bool) -> Result<Self, crate::Error> {
+        let tx_channel = match self.tx_channel.take() {
+            Ok(channel) => channel,
+            Err((err, channel)) => {
+                self.tx_channel = TxChannelContainer::Channel(channel);
+                return Err(crate::Error::Rmt(err));
+            }
         };
-        let tx = tx_channel.transmit(&data);
+        let mut rmt = Rmt {
+            data: if high > 0 {
+                [
+                    PulseCode {
+                        level1: true,
+                        length1: high,
+                        level2: false,
+                        length2: low,
+                    },
+                    PulseCode::default(), // end of pulse indicator
+                ]
+            } else {
+                [
+                    PulseCode {
+                        level1: true,
+                        length1: low,
+                        level2: false,
+                        length2: 0,
+                    },
+                    // FIXME: find more elegant solution
+                    PulseCode::default(), /* end of pulse indicator (redundant, but simplifies
+                                           * the code) */
+                ]
+            },
+            tx_channel: TxChannelContainer::None,
+        };
+        let tx = tx_channel.transmit(&rmt.data);
         // FIXME: This is the culprit.. We need the channel later again but can't wait
         // due to some time sensitive operations. Not sure how to solve this
         if wait {
-            self.tx_channel = Some(
+            rmt.tx_channel = TxChannelContainer::Channel(
                 tx.wait()
                     .map_err(|(err, _)| err)
                     .map_err(crate::Error::Rmt)?,
             );
+        } else {
+            rmt.tx_channel = TxChannelContainer::Tx(tx)
         }
-        Ok(())
+        Ok(rmt)
     }
 }

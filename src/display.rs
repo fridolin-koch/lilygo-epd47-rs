@@ -71,13 +71,13 @@ impl<'a> Display<'a> {
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
         clocks: &'a Clocks,
-    ) -> Self {
-        Display {
-            epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt, clocks),
+    ) -> Result<Self> {
+        Ok(Display {
+            epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt, clocks)?,
             skipping: 0,
             framebuffer: Box::new([0xFF; FRAMEBUFFER_SIZE]),
             tainted_rows: [0; TAINTED_ROWS_SIZE],
-        }
+        })
     }
 
     /// Turn the display on.
