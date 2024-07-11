@@ -1,6 +1,6 @@
-use alloc::boxed::Box;
-use core::{marker::PhantomPinned, mem, ops::DerefMut, pin::Pin, ptr::NonNull};
-
+use alloc::{boxed::Box, rc::Rc};
+use core::{cell::RefCell, marker::PhantomPinned, mem, ops::DerefMut, pin::Pin, ptr::NonNull};
+use core::cell::Cell;
 use esp_hal::{
     clock::Clocks,
     gpio::OutputPin,
@@ -20,8 +20,8 @@ where
     #[default]
     None,
     Channel(C),
-    // Tx(SingleShotTxTransaction<'a, C, PulseCode>),
-    Tx(Box<Transmission<'a, C>>),
+    Tx(SingleShotTxTransaction<'a, C, PulseCode>),
+    // Tx(Box<Transmission<'a, C>>),
 }
 
 impl<'a, C> TxChannelContainer<'a, C>
@@ -32,7 +32,7 @@ where
         match mem::take(self) {
             Self::None => panic!("very broken"),
             Self::Channel(ch) => Ok(ch),
-            Self::Tx(mut tx) => tx.wait(),
+            Self::Tx(tx) => tx.wait(),
         }
     }
 }
@@ -42,7 +42,10 @@ pub(crate) struct Rmt<'a> {
     data: [PulseCode; 2],
 }
 
-impl<'a> Rmt<'a> {
+impl<'a, 'b> Rmt<'a>
+where
+    'b: 'a,
+{
     pub(crate) fn new(
         pin: impl Peripheral<P = impl OutputPin>,
         rmt: impl Peripheral<P = peripherals::RMT>,
@@ -69,15 +72,14 @@ impl<'a> Rmt<'a> {
         })
     }
 
-    pub(crate) fn pulse(&mut self, high: u16, low: u16, wait: bool) -> Result<(), crate::Error> {
+    pub(crate) fn pulse(mut self, high: u16, low: u16, wait: bool) -> Result<(), crate::Error> {
         let tx_channel = match self.tx_channel.take() {
             Ok(channel) => channel,
             Err((err, channel)) => {
-                self.tx_channel = TxChannelContainer::Channel(channel);
+                self.tx_channel.set(TxChannelContainer::Channel(channel));
                 return Err(crate::Error::Rmt(err));
             }
         };
-
         let data = if high > 0 {
             [
                 PulseCode {
@@ -101,52 +103,49 @@ impl<'a> Rmt<'a> {
                                        * the code) */
             ]
         };
-        let mut tx = Transmission::new(data, tx_channel);
-        // let tx = tx_channel.transmit(&self.data);
+        let Rmt {
+            data
+        }
+
+        // let mut tx = Transmission::new(data, tx_channel);
+        let tx = tx_channel.transmit(self.data.borrow().as_ref());
         // FIXME: This is the culprit.. We need the channel later again but can't wait
         // due to some time sensitive operations. Not sure how to solve this
         if wait {
-            self.tx_channel = TxChannelContainer::Channel(
+            self.tx_channel.set(TxChannelContainer::Channel(
                 tx.wait()
                     .map_err(|(err, _)| err)
                     .map_err(crate::Error::Rmt)?,
-            );
+            ));
         } else {
-            self.tx_channel = TxChannelContainer::Tx(tx)
+            self.tx_channel.set(TxChannelContainer::Tx(tx));
         }
         Ok(())
     }
 }
 
-struct Transmission<'a, C>
+struct Transmission<C>
 where
     C: TxChannel,
 {
     data: [PulseCode; 2],
-    data_ptr: NonNull<[PulseCode; 2]>,
-    tx: Option<SingleShotTxTransaction<'a, C, PulseCode>>,
-    //    _pin: PhantomPinned,
+    channel: Channel<Blocking, 1>
 }
-
-impl<'a, C> Transmission<'a, C>
+impl<C> Transmission<C>
 where
     C: TxChannel,
 {
-    fn new(data: [PulseCode; 2], tx_channel: C) -> Box<Self> {
-        let transmission = Transmission {
-            data,
-            data_ptr: NonNull::dangling(),
-            tx: None,
-        };
-        let mut boxed = Box::new(transmission);
-        boxed.data_ptr = NonNull::from(&boxed.data);
-        boxed.tx = Some(tx_channel.transmit(unsafe { boxed.data_ptr.as_ref() }));
-
-        boxed
+    fn wait<'a>(mut self) -> Result<Rmt<'a>, (crate::Error, Rmt<'a>)> {
+        let tx = self.channel.transmit(&self.data);
+        match tx.wait() {
+            Ok(channel) => Ok(Rmt{
+                tx_channel: TxChannelContainer::Channel(channel)
+            }),
+            Err((err, channel)) => Err((crate::Error::Rmt(err), Rmt{
+                tx_channel: TxChannelContainer::Channel(channel)
+            }))
+        }
     }
-
-    fn wait(&mut self) -> Result<C, (rmt::Error, C)> {
-        let tx = self.tx.take().unwrap();
-        tx.wait()
-    }
+    
+    fn nowait<'a>
 }
