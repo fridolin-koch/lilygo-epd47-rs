@@ -91,6 +91,7 @@ pub mod display;
 #[cfg(feature = "embedded-graphics")]
 pub mod graphics;
 
+mod battery;
 mod ed047tc1;
 mod rmt;
 
@@ -111,6 +112,7 @@ pub enum Error {
 type Result<T> = core::result::Result<T, Error>;
 
 pub use crate::{
+    battery::Battery,
     display::{Display, DrawMode},
     ed047tc1::PinConfig,
 };
