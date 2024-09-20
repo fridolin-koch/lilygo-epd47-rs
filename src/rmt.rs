@@ -36,7 +36,6 @@ impl<'a> Rmt<'a> {
             unsafe { self.rmt.deref_mut().clone_unchecked() }, // TODO: find better solution
             80.MHz(),
             self.clocks,
-            None,
         )
         .map_err(crate::Error::Rmt)?;
         let tx_channel = rmt
