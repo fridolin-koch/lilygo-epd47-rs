@@ -3,7 +3,6 @@ use esp_hal::{
     gpio::AnalogPin,
     peripheral::Peripheral,
     peripherals::ADC2,
-    prelude::nb,
 };
 
 pub struct Battery<'a, PIN>
@@ -22,7 +21,7 @@ where
     /// Create a new battery voltage reader
     pub fn new(pin: PIN, adc: impl Peripheral<P = ADC2> + 'a) -> Self {
         let mut config = AdcConfig::new();
-        let adc_pin = config.enable_pin_with_cal(pin, Attenuation::Attenuation11dB);
+        let adc_pin = config.enable_pin_with_cal(pin, Attenuation::_11dB);
         Battery {
             adc: Adc::new(adc, config),
             adc_pin,

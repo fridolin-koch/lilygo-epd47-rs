@@ -45,20 +45,20 @@
 //!     // Initialise the display
 //!     let mut display = Display::new(
 //!         PinConfig {
-//!             data0: io.pins.gpio6,
-//!             data1: io.pins.gpio7,
-//!             data2: io.pins.gpio4,
-//!             data3: io.pins.gpio5,
-//!             data4: io.pins.gpio2,
-//!             data5: io.pins.gpio3,
-//!             data6: io.pins.gpio8,
-//!             data7: io.pins.gpio1,
-//!             cfg_data: io.pins.gpio13,
-//!             cfg_clk: io.pins.gpio12,
-//!             cfg_str: io.pins.gpio0,
-//!             lcd_dc: io.pins.gpio40,
-//!             lcd_wrx: io.pins.gpio41,
-//!             rmt: io.pins.gpio38,
+//!             data0: io.GPIO6,
+//!             data1: io.GPIO7,
+//!             data2: io.GPIO4,
+//!             data3: io.GPIO5,
+//!             data4: io.GPIO2,
+//!             data5: io.GPIO3,
+//!             data6: io.GPIO8,
+//!             data7: io.GPIO1,
+//!             cfg_data: io.GPIO13,
+//!             cfg_clk: io.GPIO12,
+//!             cfg_str: io.GPIO0,
+//!             lcd_dc: io.GPIO40,
+//!             lcd_wrx: io.GPIO41,
+//!             rmt: io.GPIO38,
 //!         },
 //!         peripherals.DMA,
 //!         peripherals.LCD_CAM,
@@ -102,6 +102,10 @@ pub enum Error {
     Rmt(esp_hal::rmt::Error),
     /// Pass-through
     Dma(esp_hal::dma::DmaError),
+    /// Pass-through
+    DmaBuffer(esp_hal::dma::DmaBufError),
+    /// Pass-through
+    I8080(esp_hal::lcd_cam::lcd::i8080::ConfigError),
     /// Provided pixel coordinates exceed the display boundary.
     OutOfBounds,
     /// Provided color exceeds the allowed range of 0x0 - 0x0F
@@ -124,20 +128,20 @@ macro_rules! pin_config {
         $(
             #[allow(unused_mut)]
             lilygo_epd47::PinConfig {
-                data0: $name.pins.gpio6,
-                data1: $name.pins.gpio7,
-                data2: $name.pins.gpio4,
-                data3: $name.pins.gpio5,
-                data4: $name.pins.gpio2,
-                data5: $name.pins.gpio3,
-                data6: $name.pins.gpio8,
-                data7: $name.pins.gpio1,
-                cfg_data: $name.pins.gpio13,
-                cfg_clk: $name.pins.gpio12,
-                cfg_str: $name.pins.gpio0,
-                lcd_dc: $name.pins.gpio40,
-                lcd_wrx: $name.pins.gpio41,
-                rmt: $name.pins.gpio38,
+                data0: $name.GPIO6,
+                data1: $name.GPIO7,
+                data2: $name.GPIO4,
+                data3: $name.GPIO5,
+                data4: $name.GPIO2,
+                data5: $name.GPIO3,
+                data6: $name.GPIO8,
+                data7: $name.GPIO1,
+                cfg_data: $name.GPIO13,
+                cfg_clk: $name.GPIO12,
+                cfg_str: $name.GPIO0,
+                lcd_dc: $name.GPIO40,
+                lcd_wrx: $name.GPIO41,
+                rmt: $name.GPIO38,
             }
         )*
     }

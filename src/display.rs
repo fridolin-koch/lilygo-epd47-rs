@@ -1,6 +1,12 @@
 use alloc::{boxed::Box, vec, vec::Vec};
 
-use esp_hal::{clock::Clocks, delay::Delay, peripheral::Peripheral, peripherals};
+use esp_hal::{
+    delay::Delay,
+    dma::TxChannelFor,
+    peripheral::Peripheral,
+    peripherals,
+    peripherals::LCD_CAM,
+};
 
 use crate::{ed047tc1, Error, Result};
 
@@ -65,19 +71,21 @@ impl<'a> Display<'a> {
         width: Self::WIDTH,
         height: Self::HEIGHT,
     };
-    pub fn new(
+    pub fn new<CH>(
         pins: ed047tc1::PinConfig,
-        dma: impl Peripheral<P = peripherals::DMA> + 'a,
+        dma: impl Peripheral<P = CH> + 'a,
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
-        clocks: &'a Clocks,
-    ) -> Self {
-        Display {
-            epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt, clocks),
+    ) -> Result<Self>
+    where
+        CH: TxChannelFor<LCD_CAM>,
+    {
+        Ok(Display {
+            epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt)?,
             skipping: 0,
             framebuffer: Box::new([0xFF; FRAMEBUFFER_SIZE]),
             tainted_rows: [0; TAINTED_ROWS_SIZE],
-        }
+        })
     }
 
     /// Turn the display on.
@@ -194,7 +202,7 @@ impl<'a> Display<'a> {
                 continue;
             }
             if i == area.y {
-                self.epd.set_buffer(&row);
+                self.epd.set_buffer(&row)?;
                 self.row_write(time)?;
                 continue;
             }
@@ -213,7 +221,7 @@ impl<'a> Display<'a> {
     fn row_skip(&mut self, output_time: u16) -> Result<()> {
         match self.skipping {
             0 => {
-                self.epd.set_buffer(&[0u8; BYTES_PER_LINE]);
+                self.epd.set_buffer(&[0u8; BYTES_PER_LINE])?;
                 self.epd.output_row(output_time)?;
             }
             i if i < 2 => {
@@ -262,7 +270,7 @@ impl<'a> Display<'a> {
                 let end = start + LINE_BYTES_4BPP;
                 // draw
                 let buf = prepare_dma_buffer(&self.framebuffer[start..end], &lut);
-                self.epd.set_buffer(buf.as_slice());
+                self.epd.set_buffer(buf.as_slice())?;
                 self.epd.output_row(mode.contrast_cycles()[k])?;
             }
             if self.skipping == 0 {

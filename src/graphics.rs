@@ -2,7 +2,7 @@ use embedded_graphics_core::{pixelcolor::Gray4, prelude::*};
 
 use crate::{display::Display, Error};
 
-impl<'a> DrawTarget for Display<'a> {
+impl DrawTarget for Display<'_> {
     type Color = Gray4;
 
     type Error = Error;
@@ -26,7 +26,7 @@ impl<'a> DrawTarget for Display<'a> {
     }
 }
 
-impl<'a> OriginDimensions for Display<'a> {
+impl OriginDimensions for Display<'_> {
     fn size(&self) -> Size {
         Size::new(Self::WIDTH as u32, Self::HEIGHT as u32)
     }

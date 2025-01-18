@@ -12,22 +12,15 @@ use embedded_graphics_core::{
 };
 #[allow(unused_imports)]
 use esp_backtrace as _;
-use esp_hal::{
-    clock::ClockControl,
-    delay::Delay,
-    gpio::Io,
-    peripherals::Peripherals,
-    prelude::*,
-    system::SystemControl,
-};
+use esp_hal::{clock::CpuClock, delay::Delay, main};
 use lilygo_epd47::{pin_config, Display, DrawMode};
 
-#[entry]
+#[main]
 fn main() -> ! {
-    let peripherals = Peripherals::take();
-    let system = SystemControl::new(peripherals.SYSTEM);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    esp_println::logger::init_logger_from_env();
+
+    let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+    let peripherals = esp_hal::init(config);
 
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
@@ -35,14 +28,14 @@ fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
     let mut display = Display::new(
-        pin_config!(io),
-        peripherals.DMA,
+        pin_config!(peripherals),
+        peripherals.DMA_CH0,
         peripherals.LCD_CAM,
         peripherals.RMT,
-        &clocks,
-    );
+    )
+    .expect("Failed to initialize display driver");
 
-    let delay = Delay::new(&clocks);
+    let delay = Delay::new();
     display.power_on();
     delay.delay_millis(10);
     display.clear().unwrap();

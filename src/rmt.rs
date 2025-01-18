@@ -1,29 +1,26 @@
 use core::ops::DerefMut;
 
 use esp_hal::{
-    clock::Clocks,
     gpio::GpioPin,
     into_ref,
     peripheral::{Peripheral, PeripheralRef},
     peripherals,
-    prelude::*,
     rmt,
     rmt::{Channel, PulseCode, TxChannel, TxChannelCreator},
+    time::RateExtU32,
     Blocking,
 };
 
 pub(crate) struct Rmt<'a> {
     tx_channel: Option<Channel<Blocking, 1>>,
-    clocks: &'a Clocks<'a>,
     rmt: PeripheralRef<'a, peripherals::RMT>,
 }
 
 impl<'a> Rmt<'a> {
-    pub(crate) fn new(rmt: impl Peripheral<P = peripherals::RMT> + 'a, clocks: &'a Clocks) -> Self {
+    pub(crate) fn new(rmt: impl Peripheral<P = peripherals::RMT> + 'a) -> Self {
         into_ref!(rmt);
         Rmt {
             tx_channel: None,
-            clocks,
             rmt,
         }
     }
@@ -35,7 +32,6 @@ impl<'a> Rmt<'a> {
         let rmt = rmt::Rmt::new(
             unsafe { self.rmt.deref_mut().clone_unchecked() }, // TODO: find better solution
             80.MHz(),
-            self.clocks,
         )
         .map_err(crate::Error::Rmt)?;
         let tx_channel = rmt
@@ -61,28 +57,18 @@ impl<'a> Rmt<'a> {
         let tx_channel = self.tx_channel.take().ok_or(crate::Error::Unknown)?;
         let data = if high > 0 {
             [
-                PulseCode {
-                    level1: true,
-                    length1: high,
-                    level2: false,
-                    length2: low,
-                },
-                PulseCode::default(), // end of pulse indicator
+                PulseCode::new(true, high, false, low),
+                PulseCode::empty(), // end of pulse indicator
             ]
         } else {
             [
-                PulseCode {
-                    level1: true,
-                    length1: low,
-                    level2: false,
-                    length2: 0,
-                },
+                PulseCode::new(true, low, false, 0),
                 // FIXME: find more elegant solution
-                PulseCode::default(), /* end of pulse indicator (redundant, but simplifies the
-                                       * code) */
+                PulseCode::empty(), /* end of pulse indicator (redundant, but simplifies the
+                                     * code) */
             ]
         };
-        let tx = tx_channel.transmit(&data);
+        let tx = tx_channel.transmit(&data).map_err(crate::Error::Rmt)?;
         // FIXME: This is the culprit.. We need the channel later again but can't wait
         // due to some time sensitive operations. Not sure how to solve this
         if wait {
