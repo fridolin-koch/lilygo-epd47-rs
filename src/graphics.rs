@@ -32,13 +32,13 @@ impl<'a> OriginDimensions for Display<'a> {
     }
 }
 
-impl Into<crate::display::Rectangle> for embedded_graphics_core::primitives::Rectangle {
-    fn into(self) -> crate::display::Rectangle {
+impl From<embedded_graphics_core::primitives::Rectangle> for crate::display::Rectangle {
+    fn from(val: embedded_graphics_core::primitives::Rectangle) -> Self {
         crate::display::Rectangle {
-            x: self.top_left.x as u16,
-            y: self.top_left.y as u16,
-            width: self.size.width as u16,
-            height: self.size.height as u16,
+            x: val.top_left.x as u16,
+            y: val.top_left.y as u16,
+            width: val.size.width as u16,
+            height: val.size.height as u16,
         }
     }
 }

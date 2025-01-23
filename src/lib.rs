@@ -17,60 +17,43 @@
 //! ```rust no_run
 //! #![no_std]
 //! #![no_main]
-//!
 //! extern crate alloc;
-//! extern crate lilygo_epd47;
 //!
-//! use embedded_graphics::prelude::*;
-//! use embedded_graphics::primitives::{Circle, PrimitiveStyle};
+//! use embedded_graphics::{
+//!     prelude::*,
+//!     primitives::{Circle, PrimitiveStyle},
+//! };
 //! use embedded_graphics_core::pixelcolor::{Gray4, GrayColor};
 //! use esp_backtrace as _;
-//! use esp_hal::clock::ClockControl;
-//! use esp_hal::delay::Delay;
-//! use esp_hal::gpio::Io;
-//! use esp_hal::peripherals::Peripherals;
-//! use esp_hal::prelude::*;
-//! use esp_hal::system::SystemControl;
-//! use lilygo_epd47::{Display, DrawMode, PinConfig};
+//! use esp_hal::{
+//!     delay::Delay,
+//!     gpio::Io,
+//!     prelude::*,
+//! };
+//! use lilygo_epd47::{pin_config, Display, DrawMode};
 //!
 //! #[entry]
 //! fn main() -> ! {
-//!     let peripherals = Peripherals::take();
-//!     let system = SystemControl::new(peripherals.SYSTEM);
-//!     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-//!     let delay = Delay::new(&clocks);
+//!     let peripherals = esp_hal::init(esp_hal::Config::default());
 //!     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+//!     let delay = Delay::new();
 //!     // Create PSRAM allocator
 //!     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 //!     // Initialise the display
 //!     let mut display = Display::new(
-//!         PinConfig {
-//!             data0: io.pins.gpio6,
-//!             data1: io.pins.gpio7,
-//!             data2: io.pins.gpio4,
-//!             data3: io.pins.gpio5,
-//!             data4: io.pins.gpio2,
-//!             data5: io.pins.gpio3,
-//!             data6: io.pins.gpio8,
-//!             data7: io.pins.gpio1,
-//!             cfg_data: io.pins.gpio13,
-//!             cfg_clk: io.pins.gpio12,
-//!             cfg_str: io.pins.gpio0,
-//!             lcd_dc: io.pins.gpio40,
-//!             lcd_wrx: io.pins.gpio41,
-//!             rmt: io.pins.gpio38,
-//!         },
+//!         pin_config!(io),
 //!         peripherals.DMA,
 //!         peripherals.LCD_CAM,
 //!         peripherals.RMT,
-//!         &clocks,
-//!     );
+//!     )
+//!     .expect("Failed to initialize display");
 //!     // Turn the display on
 //!     display.power_on();
 //!     delay.delay_millis(10);
 //!     // clear the screen
 //!     display.clear().unwrap();
 //!     // Draw a circle with a 3px wide stroke in the center of the screen
+//!     // TODO: Adapt to your requirements (i.e. draw whatever you want)
 //!     Circle::new(display.bounding_box().center() - Point::new(100, 100), 200)
 //!         .into_styled(PrimitiveStyle::with_stroke(Gray4::BLACK, 3))
 //!         .draw(&mut display)
@@ -102,6 +85,8 @@ pub enum Error {
     Rmt(esp_hal::rmt::Error),
     /// Pass-through
     Dma(esp_hal::dma::DmaError),
+    /// Pass-through
+    DmaBuffer(esp_hal::dma::DmaBufError),
     /// Provided pixel coordinates exceed the display boundary.
     OutOfBounds,
     /// Provided color exceeds the allowed range of 0x0 - 0x0F

@@ -1,6 +1,6 @@
 use alloc::{boxed::Box, vec, vec::Vec};
 
-use esp_hal::{clock::Clocks, delay::Delay, peripheral::Peripheral, peripherals};
+use esp_hal::{delay::Delay, peripheral::Peripheral, peripherals};
 
 use crate::{ed047tc1, Error, Result};
 
@@ -48,7 +48,7 @@ const LINE_BYTES_4BPP: usize = Display::WIDTH as usize / 2;
 
 pub struct Display<'a> {
     epd: ed047tc1::ED047TC1<'a>,
-    skipping: u8,
+    skipping: u16,
     framebuffer: Box<[u8; FRAMEBUFFER_SIZE]>,
     tainted_rows: [u8; TAINTED_ROWS_SIZE],
 }
@@ -70,14 +70,13 @@ impl<'a> Display<'a> {
         dma: impl Peripheral<P = peripherals::DMA> + 'a,
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
-        clocks: &'a Clocks,
-    ) -> Self {
-        Display {
-            epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt, clocks),
+    ) -> Result<Self> {
+        Ok(Display {
+            epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt)?,
             skipping: 0,
             framebuffer: Box::new([0xFF; FRAMEBUFFER_SIZE]),
             tainted_rows: [0; TAINTED_ROWS_SIZE],
-        }
+        })
     }
 
     /// Turn the display on.
@@ -112,7 +111,7 @@ impl<'a> Display<'a> {
         }
         // taint row
         let tainted_index = y as usize / TAINTED_ROWS_SIZE;
-        self.tainted_rows[tainted_index] |= 1 << (((y as u8) - (tainted_index as u8 * 8)) % 8);
+        self.tainted_rows[tainted_index] |= 1 << ((y - (tainted_index as u16 * 8)) % 8);
         Ok(())
     }
 
@@ -194,7 +193,7 @@ impl<'a> Display<'a> {
                 continue;
             }
             if i == area.y {
-                self.epd.set_buffer(&row);
+                self.epd.set_buffer(&row)?;
                 self.row_write(time)?;
                 continue;
             }
@@ -213,7 +212,7 @@ impl<'a> Display<'a> {
     fn row_skip(&mut self, output_time: u16) -> Result<()> {
         match self.skipping {
             0 => {
-                self.epd.set_buffer(&[0u8; BYTES_PER_LINE]);
+                self.epd.set_buffer(&[0u8; BYTES_PER_LINE])?;
                 self.epd.output_row(output_time)?;
             }
             i if i < 2 => {
@@ -237,7 +236,7 @@ impl<'a> Display<'a> {
 
     fn is_tainted(&self, row: u16) -> bool {
         let index = row as usize / TAINTED_ROWS_SIZE;
-        self.tainted_rows[index] & (1 << (((row as u8) - (index as u8 * 8)) % 8)) != 0
+        self.tainted_rows[index] & (1 << ((row - (index as u16 * 8)) % 8)) != 0
     }
 
     const DRAW_IMAGE_FRAME_COUNT: usize = 15;
@@ -262,7 +261,7 @@ impl<'a> Display<'a> {
                 let end = start + LINE_BYTES_4BPP;
                 // draw
                 let buf = prepare_dma_buffer(&self.framebuffer[start..end], &lut);
-                self.epd.set_buffer(buf.as_slice());
+                self.epd.set_buffer(buf.as_slice())?;
                 self.epd.output_row(mode.contrast_cycles()[k])?;
             }
             if self.skipping == 0 {

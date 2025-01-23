@@ -14,6 +14,7 @@ space requirements of the framebuffer and the lut (~325kb).
 Built using [`esp-hal`] and [`embedded-graphics`]
 
 [`esp-hal`]: https://github.com/esp-rs/esp-hal
+
 [`embedded-graphics`]: https://docs.rs/embedded-graphics/
 
 **WARNING:**
@@ -42,18 +43,17 @@ use embedded_graphics::{
 use embedded_graphics_core::pixelcolor::{Gray4, GrayColor};
 use esp_backtrace as _;
 use esp_hal::{
-    clock::ClockControl, delay::Delay, gpio::Io, peripherals::Peripherals, prelude::*,
-    system::SystemControl,
+    delay::Delay,
+    gpio::Io,
+    prelude::*,
 };
 use lilygo_epd47::{pin_config, Display, DrawMode};
 
 #[entry]
 fn main() -> ! {
-    let peripherals = Peripherals::take();
-    let system = SystemControl::new(peripherals.SYSTEM);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
-    let delay = Delay::new(&clocks);
+    let delay = Delay::new();
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
     // Initialise the display
@@ -62,8 +62,8 @@ fn main() -> ! {
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,
-        &clocks,
-    );
+    )
+        .expect("Failed to initialize display");
     // Turn the display on
     display.power_on();
     delay.delay_millis(10);
@@ -92,7 +92,8 @@ Run examples like this ` cargo run --release --example <name>`.
 - `grayscale` - Alternating loop between a horizontal/vertical "gradient" of all the available colors. You may notice
   that the darker colors are harder to distinguish. This is probably due to the waveforms not being used (yet).
 - `hello-world` - [`embedded-graphics`] demo. The bmp images used have been converted using
-  imagemagick `convert <source>.png -size 200x200 -background white -flatten -alpha off -type Grayscale -depth 4 <output>.bmp`
+  imagemagick
+  `convert <source>.png -size 200x200 -background white -flatten -alpha off -type Grayscale -depth 4 <output>.bmp`
 - `screen-repair` - Showcases how to use the repair
   methodology [provided by lilygo](https://github.com/Xinyuan-LilyGO/LilyGo-EPD47/blob/master/examples/screen_repair/screen_repair.ino).
 - `simple` - Boilerplate, same as the example above.

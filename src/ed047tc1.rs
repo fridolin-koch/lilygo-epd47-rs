@@ -1,25 +1,20 @@
-use core::ptr::addr_of_mut;
-
 use esp_hal::{
-    clock::Clocks,
-    dma::{self},
+    dma::{self, DmaTxBuf},
     dma_buffers,
     gpio::{GpioPin, Level, Output, OutputPin},
-    lcd_cam::{lcd::i8080, LcdCam},
+    lcd_cam::{
+        lcd::{i8080, i8080::Command},
+        LcdCam,
+    },
     peripheral::Peripheral,
     peripherals,
-    prelude::_fugit_RateExtU32,
+    prelude::*,
     Blocking,
 };
 
 use crate::rmt;
 
-const DMA_BUFFER_SIZE: usize = 248;
-
-fn dma_buffer() -> &'static mut [u8; DMA_BUFFER_SIZE] {
-    static mut BUFFER: [u8; DMA_BUFFER_SIZE] = [0u8; DMA_BUFFER_SIZE];
-    unsafe { &mut *addr_of_mut!(BUFFER) }
-}
+const DMA_BUFFER_SIZE: usize = 240;
 
 struct ConfigRegister {
     latch_enable: bool,
@@ -47,28 +42,18 @@ impl Default for ConfigRegister {
     }
 }
 
-struct ConfigWriter<'a, DATA, CLK, STR>
-where
-    DATA: OutputPin,
-    CLK: OutputPin,
-    STR: OutputPin,
-{
-    pin_data: Output<'a, DATA>,
-    pin_clk: Output<'a, CLK>,
-    pin_str: Output<'a, STR>,
+struct ConfigWriter<'a> {
+    pin_data: Output<'a>,
+    pin_clk: Output<'a>,
+    pin_str: Output<'a>,
     config: ConfigRegister,
 }
 
-impl<'a, DATA, CLK, STR> ConfigWriter<'a, DATA, CLK, STR>
-where
-    DATA: OutputPin,
-    CLK: OutputPin,
-    STR: OutputPin,
-{
+impl<'a> ConfigWriter<'a> {
     fn new(
-        data: impl Peripheral<P = DATA> + 'a,
-        clk: impl Peripheral<P = CLK> + 'a,
-        str: impl Peripheral<P = STR> + 'a,
+        data: impl Peripheral<P = impl OutputPin> + 'a,
+        clk: impl Peripheral<P = impl OutputPin> + 'a,
+        str: impl Peripheral<P = impl OutputPin> + 'a,
     ) -> Self {
         ConfigWriter {
             pin_data: Output::new(data, Level::High),
@@ -120,24 +105,10 @@ pub struct PinConfig {
 }
 
 pub(crate) struct ED047TC1<'a> {
-    i8080: i8080::I8080<
-        'a,
-        dma::DmaChannel0,
-        i8080::TxEightBits<
-            'a,
-            GpioPin<6>,
-            GpioPin<7>,
-            GpioPin<4>,
-            GpioPin<5>,
-            GpioPin<2>,
-            GpioPin<3>,
-            GpioPin<8>,
-            GpioPin<1>,
-        >,
-        Blocking,
-    >,
-    cfg_writer: ConfigWriter<'a, GpioPin<13>, GpioPin<12>, GpioPin<0>>,
+    i8080: Option<i8080::I8080<'a, Blocking>>,
+    cfg_writer: ConfigWriter<'a>,
     rmt: rmt::Rmt<'a>,
+    dma_buf: Option<DmaTxBuf>,
 }
 
 impl<'a> ED047TC1<'a> {
@@ -146,8 +117,7 @@ impl<'a> ED047TC1<'a> {
         dma: impl Peripheral<P = peripherals::DMA> + 'a,
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
-        clocks: &'a Clocks,
-    ) -> Self {
+    ) -> crate::Result<Self> {
         // configure data pins
         let tx_pins = i8080::TxEightBits::new(
             pins.data0, pins.data1, pins.data2, pins.data3, pins.data4, pins.data5, pins.data6,
@@ -165,29 +135,32 @@ impl<'a> ED047TC1<'a> {
         let mut cfg_writer = ConfigWriter::new(pins.cfg_data, pins.cfg_clk, pins.cfg_str);
         cfg_writer.write();
 
-        let (_tx_buffer, tx_descriptors, _, _rx_descriptors) = dma_buffers!(32000, 0);
+        let (_, _, tx_buffer, tx_descriptors) = dma_buffers!(0, DMA_BUFFER_SIZE);
+        let dma_buf =
+            Some(DmaTxBuf::new(tx_descriptors, tx_buffer).map_err(crate::Error::DmaBuffer)?);
 
         let ctrl = ED047TC1 {
-            i8080: i8080::I8080::new(
-                lcd_cam.lcd,
-                channel.tx,
-                tx_descriptors,
-                tx_pins,
-                10.MHz(),
-                i8080::Config {
-                    cd_idle_edge: false,  // dc_idle_level
-                    cd_cmd_edge: true,    // dc_cmd_level
-                    cd_dummy_edge: false, // dc_dummy_level
-                    cd_data_edge: false,  // dc_data_level
-                    ..Default::default()
-                },
-                clocks,
-            )
-            .with_ctrl_pins(pins.lcd_dc, pins.lcd_wrx),
+            i8080: Some(
+                i8080::I8080::new(
+                    lcd_cam.lcd,
+                    channel.tx,
+                    tx_pins,
+                    10.MHz(),
+                    i8080::Config {
+                        cd_idle_edge: false,  // dc_idle_level
+                        cd_cmd_edge: true,    // dc_cmd_level
+                        cd_dummy_edge: false, // dc_dummy_level
+                        cd_data_edge: false,  // dc_data_level
+                        ..Default::default()
+                    },
+                )
+                .with_ctrl_pins(pins.lcd_dc, pins.lcd_wrx),
+            ),
             cfg_writer,
-            rmt: rmt::Rmt::new(rmt, clocks),
+            rmt: rmt::Rmt::new(rmt),
+            dma_buf,
         };
-        ctrl
+        Ok(ctrl)
     }
 
     pub(crate) fn power_on(&mut self) {
@@ -228,7 +201,7 @@ impl<'a> ED047TC1<'a> {
 
         self.cfg_writer.config.stv = false;
         self.cfg_writer.write();
-        // busy_delay(240);
+
         self.rmt.pulse(10000, 1000, false)?;
         self.cfg_writer.config.stv = true;
         self.cfg_writer.write();
@@ -261,9 +234,19 @@ impl<'a> ED047TC1<'a> {
     pub(crate) fn output_row(&mut self, output_time: u16) -> crate::Result<()> {
         self.latch_row();
         self.rmt.pulse(output_time, 50, false)?;
-        let buf = dma_buffer();
-        let tx = self.i8080.send_dma(0, 0, &buf).map_err(crate::Error::Dma)?;
-        tx.wait().map_err(crate::Error::Dma)?;
+        let i8080 = self.i8080.take().ok_or(crate::Error::Unknown)?;
+        let dma_buf = self.dma_buf.take().ok_or(crate::Error::Unknown)?;
+        let tx = i8080
+            .send(Command::<u8>::One(0), 0, dma_buf)
+            .map_err(|(err, i8080, buf)| {
+                self.dma_buf = Some(buf);
+                self.i8080 = Some(i8080);
+                crate::Error::Dma(err)
+            })?;
+        let (r, i8080, dma_buf) = tx.wait();
+        r.map_err(crate::Error::Dma)?;
+        self.i8080 = Some(i8080);
+        self.dma_buf = Some(dma_buf);
 
         Ok(())
     }
@@ -279,9 +262,12 @@ impl<'a> ED047TC1<'a> {
         Ok(())
     }
 
-    pub(crate) fn set_buffer(&self, data: &[u8]) {
-        let buffer = dma_buffer();
-        buffer[..data.len()].copy_from_slice(data);
+    pub(crate) fn set_buffer(&mut self, data: &[u8]) -> crate::Result<()> {
+        let mut dma_buf = self.dma_buf.take().ok_or(crate::Error::Unknown)?;
+        dma_buf.as_mut_slice().fill(0);
+        dma_buf.as_mut_slice()[..data.len()].copy_from_slice(data);
+        self.dma_buf = Some(dma_buf);
+        Ok(())
     }
 }
 

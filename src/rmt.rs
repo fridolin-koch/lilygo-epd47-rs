@@ -1,7 +1,6 @@
 use core::ops::DerefMut;
 
 use esp_hal::{
-    clock::Clocks,
     gpio::GpioPin,
     into_ref,
     peripheral::{Peripheral, PeripheralRef},
@@ -14,16 +13,14 @@ use esp_hal::{
 
 pub(crate) struct Rmt<'a> {
     tx_channel: Option<Channel<Blocking, 1>>,
-    clocks: &'a Clocks<'a>,
     rmt: PeripheralRef<'a, peripherals::RMT>,
 }
 
 impl<'a> Rmt<'a> {
-    pub(crate) fn new(rmt: impl Peripheral<P = peripherals::RMT> + 'a, clocks: &'a Clocks) -> Self {
+    pub(crate) fn new(rmt: impl Peripheral<P = peripherals::RMT> + 'a) -> Self {
         into_ref!(rmt);
         Rmt {
             tx_channel: None,
-            clocks,
             rmt,
         }
     }
@@ -35,7 +32,6 @@ impl<'a> Rmt<'a> {
         let rmt = rmt::Rmt::new(
             unsafe { self.rmt.deref_mut().clone_unchecked() }, // TODO: find better solution
             80.MHz(),
-            self.clocks,
         )
         .map_err(crate::Error::Rmt)?;
         let tx_channel = rmt

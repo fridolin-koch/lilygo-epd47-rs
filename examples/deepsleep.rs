@@ -13,10 +13,8 @@ use embedded_graphics_core::{
 };
 use esp_backtrace as _;
 use esp_hal::{
-    clock::ClockControl,
     delay::Delay,
     gpio::Io,
-    peripherals::Peripherals,
     prelude::*,
     rtc_cntl::{
         get_reset_reason,
@@ -25,7 +23,6 @@ use esp_hal::{
         Rtc,
         SocResetReason,
     },
-    system::SystemControl,
     Cpu,
 };
 use lilygo_epd47::{pin_config, Display, DrawMode};
@@ -49,9 +46,7 @@ static mut LAST_RECT: Rectangle = Rectangle {
 fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
-    let peripherals = Peripherals::take();
-    let system = SystemControl::new(peripherals.SYSTEM);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     // Create PSRAM allocator
@@ -62,11 +57,11 @@ fn main() -> ! {
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,
-        &clocks,
-    );
+    )
+    .expect("Failed to initialize display");
 
-    let mut delay = Delay::new(&clocks);
-    let mut rtc = Rtc::new(peripherals.LPWR, None);
+    let delay = Delay::new();
+    let mut rtc = Rtc::new(peripherals.LPWR);
 
     let reason = get_reset_reason(Cpu::ProCpu).unwrap_or(SocResetReason::ChipPowerOn);
     let wake_reason = get_wakeup_cause();
@@ -127,7 +122,7 @@ fn main() -> ! {
     rtc_cfg.set_rtc_slowmem_pd_en(false);
 
     let timer = TimerWakeupSource::new(Duration::from_secs(30));
-    rtc.sleep(&rtc_cfg, &[&timer], &mut delay);
+    rtc.sleep(&rtc_cfg, &[&timer]);
 
     loop {}
 }

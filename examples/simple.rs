@@ -10,23 +10,17 @@ use embedded_graphics::{
 };
 use embedded_graphics_core::pixelcolor::{Gray4, GrayColor};
 use esp_backtrace as _;
-use esp_hal::{
-    clock::ClockControl,
-    delay::Delay,
-    gpio::Io,
-    peripherals::Peripherals,
-    prelude::*,
-    system::SystemControl,
-};
+use esp_hal::{delay::Delay, gpio::Io, prelude::*};
 use lilygo_epd47::{pin_config, Display, DrawMode};
 
 #[entry]
 fn main() -> ! {
-    let peripherals = Peripherals::take();
-    let system = SystemControl::new(peripherals.SYSTEM);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    let delay = Delay::new(&clocks);
+    esp_println::logger::init_logger_from_env();
+
+    let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let delay = Delay::new();
+
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
     // Initialise the display
@@ -35,8 +29,8 @@ fn main() -> ! {
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,
-        &clocks,
-    );
+    )
+    .expect("Failed to initialize display");
     // Turn the display on
     display.power_on();
     delay.delay_millis(10);

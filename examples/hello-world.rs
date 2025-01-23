@@ -19,14 +19,7 @@ use embedded_graphics::{
 };
 use embedded_graphics_core::pixelcolor::{Gray4, GrayColor};
 use esp_backtrace as _;
-use esp_hal::{
-    clock::ClockControl,
-    delay::Delay,
-    gpio::Io,
-    peripherals::Peripherals,
-    prelude::*,
-    system::SystemControl,
-};
+use esp_hal::{delay::Delay, gpio::Io, prelude::*};
 use esp_println::println;
 use lilygo_epd47::{pin_config, Display, DrawMode};
 use tinybmp::Bmp;
@@ -36,9 +29,7 @@ use u8g2_fonts::U8g2TextStyle;
 fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
-    let peripherals = Peripherals::take();
-    let system = SystemControl::new(peripherals.SYSTEM);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     // Create PSRAM allocator
@@ -49,10 +40,10 @@ fn main() -> ! {
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,
-        &clocks,
-    );
+    )
+    .expect("Failed to initialize display");
 
-    let delay = Delay::new(&clocks);
+    let delay = Delay::new();
 
     delay.delay_millis(100);
     display.power_on();
