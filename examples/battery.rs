@@ -20,20 +20,19 @@ fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 
     let mut display = Display::new(
-        pin_config!(io),
+        pin_config!(peripherals),
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,
     )
     .expect("Failed to initialize display");
 
-    let mut battery = Battery::new(io.pins.gpio14, peripherals.ADC2);
+    let mut battery = Battery::new(peripherals.GPIO14, peripherals.ADC2);
 
     let delay = Delay::new();
 

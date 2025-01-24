@@ -19,7 +19,7 @@ use embedded_graphics::{
 };
 use embedded_graphics_core::pixelcolor::{Gray4, GrayColor};
 use esp_backtrace as _;
-use esp_hal::{delay::Delay, gpio::Io, prelude::*};
+use esp_hal::{delay::Delay, prelude::*};
 use esp_println::println;
 use lilygo_epd47::{pin_config, Display, DrawMode};
 use tinybmp::Bmp;
@@ -30,13 +30,12 @@ fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 
     let mut display = Display::new(
-        pin_config!(io),
+        pin_config!(peripherals),
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,

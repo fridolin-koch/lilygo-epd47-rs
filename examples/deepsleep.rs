@@ -14,12 +14,11 @@ use embedded_graphics_core::{
 use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
-    gpio::Io,
     prelude::*,
     rtc_cntl::{
-        get_reset_reason,
-        get_wakeup_cause,
+        reset_reason,
         sleep::{RtcSleepConfig, TimerWakeupSource},
+        wakeup_cause,
         Rtc,
         SocResetReason,
     },
@@ -47,13 +46,12 @@ fn main() -> ! {
     esp_println::logger::init_logger_from_env();
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 
     let mut display = Display::new(
-        pin_config!(io),
+        pin_config!(peripherals),
         peripherals.DMA,
         peripherals.LCD_CAM,
         peripherals.RMT,
@@ -63,8 +61,8 @@ fn main() -> ! {
     let delay = Delay::new();
     let mut rtc = Rtc::new(peripherals.LPWR);
 
-    let reason = get_reset_reason(Cpu::ProCpu).unwrap_or(SocResetReason::ChipPowerOn);
-    let wake_reason = get_wakeup_cause();
+    let reason = reset_reason(Cpu::ProCpu).unwrap_or(SocResetReason::ChipPowerOn);
+    let wake_reason = wakeup_cause();
 
     // turn screen on
     display.power_on();

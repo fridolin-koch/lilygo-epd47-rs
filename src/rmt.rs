@@ -56,29 +56,11 @@ impl<'a> Rmt<'a> {
         self.ensure_channel()?;
         let tx_channel = self.tx_channel.take().ok_or(crate::Error::Unknown)?;
         let data = if high > 0 {
-            [
-                PulseCode {
-                    level1: true,
-                    length1: high,
-                    level2: false,
-                    length2: low,
-                },
-                PulseCode::default(), // end of pulse indicator
-            ]
+            [PulseCode::new(true, high, false, low), PulseCode::empty()]
         } else {
-            [
-                PulseCode {
-                    level1: true,
-                    length1: low,
-                    level2: false,
-                    length2: 0,
-                },
-                // FIXME: find more elegant solution
-                PulseCode::default(), /* end of pulse indicator (redundant, but simplifies the
-                                       * code) */
-            ]
+            [PulseCode::new(true, low, false, 0), PulseCode::empty()]
         };
-        let tx = tx_channel.transmit(&data);
+        let tx = tx_channel.transmit(&data).map_err(crate::Error::Rmt)?;
         // FIXME: This is the culprit.. We need the channel later again but can't wait
         // due to some time sensitive operations. Not sure how to solve this
         if wait {

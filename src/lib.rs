@@ -27,7 +27,6 @@
 //! use esp_backtrace as _;
 //! use esp_hal::{
 //!     delay::Delay,
-//!     gpio::Io,
 //!     prelude::*,
 //! };
 //! use lilygo_epd47::{pin_config, Display, DrawMode};
@@ -35,13 +34,12 @@
 //! #[entry]
 //! fn main() -> ! {
 //!     let peripherals = esp_hal::init(esp_hal::Config::default());
-//!     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 //!     let delay = Delay::new();
 //!     // Create PSRAM allocator
 //!     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 //!     // Initialise the display
 //!     let mut display = Display::new(
-//!         pin_config!(io),
+//!         pin_config!(peripherals),
 //!         peripherals.DMA,
 //!         peripherals.LCD_CAM,
 //!         peripherals.RMT,
@@ -109,20 +107,20 @@ macro_rules! pin_config {
         $(
             #[allow(unused_mut)]
             lilygo_epd47::PinConfig {
-                data0: $name.pins.gpio6,
-                data1: $name.pins.gpio7,
-                data2: $name.pins.gpio4,
-                data3: $name.pins.gpio5,
-                data4: $name.pins.gpio2,
-                data5: $name.pins.gpio3,
-                data6: $name.pins.gpio8,
-                data7: $name.pins.gpio1,
-                cfg_data: $name.pins.gpio13,
-                cfg_clk: $name.pins.gpio12,
-                cfg_str: $name.pins.gpio0,
-                lcd_dc: $name.pins.gpio40,
-                lcd_wrx: $name.pins.gpio41,
-                rmt: $name.pins.gpio38,
+                data0: $name.GPIO6,
+                data1: $name.GPIO7,
+                data2: $name.GPIO4,
+                data3: $name.GPIO5,
+                data4: $name.GPIO2,
+                data5: $name.GPIO3,
+                data6: $name.GPIO8,
+                data7: $name.GPIO1,
+                cfg_data: $name.GPIO13,
+                cfg_clk: $name.GPIO12,
+                cfg_str: $name.GPIO0,
+                lcd_dc: $name.GPIO40,
+                lcd_wrx: $name.GPIO41,
+                rmt: $name.GPIO38,
             }
         )*
     }
