@@ -1,5 +1,5 @@
 use esp_hal::{
-    dma::{self, DmaTxBuf},
+    dma::{DmaChannel, DmaChannelFor, DmaTxBuf, TxChannelFor},
     dma_buffers,
     gpio::{GpioPin, Level, Output, OutputPin},
     lcd_cam::{
@@ -8,9 +8,10 @@ use esp_hal::{
     },
     peripheral::Peripheral,
     peripherals,
-    prelude::*,
+    time::RateExtU32,
     Blocking,
 };
+use esp_println::println;
 
 use crate::rmt;
 
@@ -112,21 +113,20 @@ pub(crate) struct ED047TC1<'a> {
 }
 
 impl<'a> ED047TC1<'a> {
-    pub(crate) fn new(
+    pub(crate) fn new<CH>(
         pins: PinConfig,
-        dma: impl Peripheral<P = peripherals::DMA> + 'a,
+        dma: impl Peripheral<P = CH> + 'a,
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
-    ) -> crate::Result<Self> {
+    ) -> crate::Result<Self>
+    where
+        CH: TxChannelFor<peripherals::LCD_CAM>,
+    {
         // configure data pins
         let tx_pins = i8080::TxEightBits::new(
             pins.data0, pins.data1, pins.data2, pins.data3, pins.data4, pins.data5, pins.data6,
             pins.data7,
         );
-
-        // configure dma
-        let dma = dma::Dma::new(dma);
-        let channel = dma.channel0.configure(false, dma::DmaPriority::Priority0);
 
         // init lcd
         let lcd_cam = LcdCam::new(lcd_cam);
@@ -136,17 +136,16 @@ impl<'a> ED047TC1<'a> {
         cfg_writer.write();
 
         let (_, _, tx_buffer, tx_descriptors) = dma_buffers!(0, DMA_BUFFER_SIZE);
-        let dma_buf =
-            Some(DmaTxBuf::new(tx_descriptors, tx_buffer).map_err(crate::Error::DmaBuffer)?);
 
+        let dma_buf = DmaTxBuf::new(tx_descriptors, tx_buffer).map_err(crate::Error::DmaBuffer)?;
         let ctrl = ED047TC1 {
             i8080: Some(
                 i8080::I8080::new(
                     lcd_cam.lcd,
-                    channel.tx,
+                    dma,
                     tx_pins,
-                    10.MHz(),
                     i8080::Config {
+                        frequency: 10.MHz(),
                         cd_idle_edge: false,  // dc_idle_level
                         cd_cmd_edge: true,    // dc_cmd_level
                         cd_dummy_edge: false, // dc_dummy_level
@@ -154,11 +153,12 @@ impl<'a> ED047TC1<'a> {
                         ..Default::default()
                     },
                 )
+                .map_err(crate::Error::I8080)?
                 .with_ctrl_pins(pins.lcd_dc, pins.lcd_wrx),
             ),
             cfg_writer,
             rmt: rmt::Rmt::new(rmt),
-            dma_buf,
+            dma_buf: Some(dma_buf),
         };
         Ok(ctrl)
     }

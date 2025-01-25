@@ -85,6 +85,8 @@ pub enum Error {
     Dma(esp_hal::dma::DmaError),
     /// Pass-through
     DmaBuffer(esp_hal::dma::DmaBufError),
+    /// Pass-through
+    I8080(esp_hal::lcd_cam::lcd::i8080::ConfigError),
     /// Provided pixel coordinates exceed the display boundary.
     OutOfBounds,
     /// Provided color exceeds the allowed range of 0x0 - 0x0F

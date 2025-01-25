@@ -5,9 +5,9 @@ use esp_hal::{
     into_ref,
     peripheral::{Peripheral, PeripheralRef},
     peripherals,
-    prelude::*,
     rmt,
     rmt::{Channel, PulseCode, TxChannel, TxChannelCreator},
+    time::RateExtU32,
     Blocking,
 };
 

@@ -1,6 +1,6 @@
 use alloc::{boxed::Box, vec, vec::Vec};
 
-use esp_hal::{delay::Delay, peripheral::Peripheral, peripherals};
+use esp_hal::{delay::Delay, dma::TxChannelFor, peripheral::Peripheral, peripherals};
 
 use crate::{ed047tc1, Error, Result};
 
@@ -65,12 +65,15 @@ impl<'a> Display<'a> {
         width: Self::WIDTH,
         height: Self::HEIGHT,
     };
-    pub fn new(
+    pub fn new<CH>(
         pins: ed047tc1::PinConfig,
-        dma: impl Peripheral<P = peripherals::DMA> + 'a,
+        dma: impl Peripheral<P = CH> + 'a,
         lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
         rmt: impl Peripheral<P = peripherals::RMT> + 'a,
-    ) -> Result<Self> {
+    ) -> Result<Self>
+    where
+        CH: TxChannelFor<peripherals::LCD_CAM>,
+    {
         Ok(Display {
             epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt)?,
             skipping: 0,
