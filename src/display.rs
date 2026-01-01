@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, vec, vec::Vec};
 
-use esp_hal::{delay::Delay, dma::TxChannelFor, peripheral::Peripheral, peripherals};
+use esp_hal::{delay::Delay, dma::TxChannelFor, peripherals};
+use log::{debug, info};
 
 use crate::{ed047tc1, Error, Result};
 
@@ -65,15 +66,12 @@ impl<'a> Display<'a> {
         width: Self::WIDTH,
         height: Self::HEIGHT,
     };
-    pub fn new<CH>(
-        pins: ed047tc1::PinConfig,
-        dma: impl Peripheral<P = CH> + 'a,
-        lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
-        rmt: impl Peripheral<P = peripherals::RMT> + 'a,
-    ) -> Result<Self>
-    where
-        CH: TxChannelFor<peripherals::LCD_CAM>,
-    {
+    pub fn new(
+        pins: ed047tc1::PinConfig<'a>,
+        dma: impl TxChannelFor<peripherals::LCD_CAM<'a>>,
+        lcd_cam: peripherals::LCD_CAM<'a>,
+        rmt: peripherals::RMT<'a>,
+    ) -> Result<Self> {
         Ok(Display {
             epd: ed047tc1::ED047TC1::new(pins, dma, lcd_cam, rmt)?,
             skipping: 0,
@@ -146,15 +144,18 @@ impl<'a> Display<'a> {
     /// Performs the screen repair routine as described here
     /// https://github.com/Xinyuan-LilyGO/LilyGo-EPD47/blob/master/examples/screen_repair/screen_repair.ino
     pub fn repair(&mut self, delay: Delay) -> Result<()> {
+        info!("Starting screen repair...");
         self.clear()?;
         for _ in 0..20 {
             self.push_pixels(Self::BOUNDING_BOX, 50, 0)?;
             delay.delay_millis(500);
+            debug!("Clearing phase 1 cycle...");
         }
         self.clear()?;
         for _ in 0..40 {
             self.push_pixels(Self::BOUNDING_BOX, 50, 1)?;
             delay.delay_millis(500);
+            debug!("Clearing phase 2 cycle...");
         }
         self.clear()
     }

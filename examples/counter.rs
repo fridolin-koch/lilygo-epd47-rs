@@ -9,24 +9,27 @@ use core::format_args;
 use embedded_graphics::prelude::*;
 use embedded_graphics_core::pixelcolor::{Gray4, GrayColor};
 use esp_backtrace as _;
-use esp_hal::{delay::Delay, prelude::*};
+use esp_hal::{clock::CpuClock, delay::Delay, main, psram::PsramConfig};
 use lilygo_epd47::{pin_config, Display, DrawMode};
 use u8g2_fonts::FontRenderer;
 
 static FONT: FontRenderer = FontRenderer::new::<u8g2_fonts::fonts::u8g2_font_spleen32x64_mr>();
 
-#[entry]
-fn main() -> ! {
-    esp_println::logger::init_logger_from_env();
+esp_bootloader_esp_idf::esp_app_desc!();
 
-    let peripherals = esp_hal::init(esp_hal::Config::default());
+#[main]
+fn main() -> ! {
+    let config = esp_hal::Config::default()
+        .with_cpu_clock(CpuClock::max())
+        .with_psram(PsramConfig::default());
+    let peripherals = esp_hal::init(config);
 
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 
     let mut display = Display::new(
         pin_config!(peripherals),
-        peripherals.DMA,
+        peripherals.DMA_CH0,
         peripherals.LCD_CAM,
         peripherals.RMT,
     )

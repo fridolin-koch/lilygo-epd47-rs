@@ -4,6 +4,8 @@ runner = "espflash flash --monitor"
 
 [env]
 ESP_LOG = "DEBUG"
+RUST_LOG = "DEBUG"
+ESP_HAL_CONFIG_PSRAM_MODE = "octal"
 
 [build]
 rustflags = [

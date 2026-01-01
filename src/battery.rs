@@ -1,16 +1,16 @@
 use esp_hal::{
     analog::adc::{Adc, AdcChannel, AdcConfig, AdcPin, Attenuation},
     gpio::AnalogPin,
-    peripheral::Peripheral,
     peripherals::ADC2,
+    Blocking,
 };
 
 pub struct Battery<'a, PIN>
 where
     PIN: AdcChannel + AnalogPin,
 {
-    adc: Adc<'a, ADC2>,
-    adc_pin: AdcPin<PIN, ADC2, esp_hal::analog::adc::AdcCalCurve<ADC2>>,
+    adc: Adc<'a, ADC2<'a>, Blocking>,
+    adc_pin: AdcPin<PIN, ADC2<'a>, esp_hal::analog::adc::AdcCalCurve<ADC2<'a>>>,
     correction_factor: f32,
 }
 
@@ -19,7 +19,7 @@ where
     PIN: AdcChannel + AnalogPin,
 {
     /// Create a new battery voltage reader
-    pub fn new(pin: PIN, adc: impl Peripheral<P = ADC2> + 'a) -> Self {
+    pub fn new(pin: PIN, adc: ADC2<'a>) -> Self {
         let mut config = AdcConfig::new();
         let adc_pin = config.enable_pin_with_cal(pin, Attenuation::_11dB);
         Battery {

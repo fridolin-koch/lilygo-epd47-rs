@@ -6,30 +6,42 @@
 extern crate lilygo_epd47;
 
 use esp_backtrace as _;
-use esp_hal::{delay::Delay, prelude::*};
+use esp_hal::{clock::CpuClock, delay::Delay, main, psram::PsramConfig};
+use esp_println::{logger::init_logger_from_env, println};
 use lilygo_epd47::{pin_config, Display};
 
-#[entry]
+esp_bootloader_esp_idf::esp_app_desc!();
+
+#[main]
 fn main() -> ! {
-    let peripherals = esp_hal::init(esp_hal::Config::default());
+    init_logger_from_env();
+
+    let config = esp_hal::Config::default()
+        .with_cpu_clock(CpuClock::max())
+        .with_psram(PsramConfig::default());
+    let peripherals = esp_hal::init(config);
 
     // Create PSRAM allocator
     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
 
-    esp_println::logger::init_logger_from_env();
+    println!("initializing display...");
 
     let mut display = Display::new(
         pin_config!(peripherals),
-        peripherals.DMA,
+        peripherals.DMA_CH0,
         peripherals.LCD_CAM,
         peripherals.RMT,
     )
     .expect("Failed to initialize display");
 
     let delay = Delay::new();
+    println!("set power on...");
     display.power_on();
+    println!("delay 10ms...");
     delay.delay_millis(10);
+    println!("start repair...");
     display.repair(delay).unwrap();
+    println!("set power off...");
     display.power_off();
 
     loop {}

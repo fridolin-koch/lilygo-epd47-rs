@@ -1,17 +1,15 @@
 use esp_hal::{
-    dma::{DmaChannel, DmaChannelFor, DmaTxBuf, TxChannelFor},
+    dma::{DmaTxBuf, TxChannelFor},
     dma_buffers,
-    gpio::{GpioPin, Level, Output, OutputPin},
+    gpio::{AnyPin, Level, Output, OutputConfig, OutputPin},
     lcd_cam::{
         lcd::{i8080, i8080::Command},
         LcdCam,
     },
-    peripheral::Peripheral,
     peripherals,
-    time::RateExtU32,
+    time::Rate,
     Blocking,
 };
-use esp_println::println;
 
 use crate::rmt;
 
@@ -51,15 +49,11 @@ struct ConfigWriter<'a> {
 }
 
 impl<'a> ConfigWriter<'a> {
-    fn new(
-        data: impl Peripheral<P = impl OutputPin> + 'a,
-        clk: impl Peripheral<P = impl OutputPin> + 'a,
-        str: impl Peripheral<P = impl OutputPin> + 'a,
-    ) -> Self {
+    fn new(data: impl OutputPin + 'a, clk: impl OutputPin + 'a, str: impl OutputPin + 'a) -> Self {
         ConfigWriter {
-            pin_data: Output::new(data, Level::High),
-            pin_clk: Output::new(clk, Level::High),
-            pin_str: Output::new(str, Level::Low),
+            pin_data: Output::new(data, Level::High, OutputConfig::default()),
+            pin_clk: Output::new(clk, Level::High, OutputConfig::default()),
+            pin_str: Output::new(str, Level::Low, OutputConfig::default()),
             config: ConfigRegister::default(),
         }
     }
@@ -88,21 +82,35 @@ impl<'a> ConfigWriter<'a> {
     }
 }
 
-pub struct PinConfig {
-    pub data0: GpioPin<6>,
-    pub data1: GpioPin<7>,
-    pub data2: GpioPin<4>,
-    pub data3: GpioPin<5>,
-    pub data4: GpioPin<2>,
-    pub data5: GpioPin<3>,
-    pub data6: GpioPin<8>,
-    pub data7: GpioPin<1>,
-    pub cfg_data: GpioPin<13>,
-    pub cfg_clk: GpioPin<12>,
-    pub cfg_str: GpioPin<0>,
-    pub lcd_dc: GpioPin<40>,
-    pub lcd_wrx: GpioPin<41>,
-    pub rmt: GpioPin<38>,
+pub struct PinConfig<'a> {
+    pub data0: AnyPin<'a>,
+    pub data1: AnyPin<'a>,
+    pub data2: AnyPin<'a>,
+    pub data3: AnyPin<'a>,
+    pub data4: AnyPin<'a>,
+    pub data5: AnyPin<'a>,
+    pub data6: AnyPin<'a>,
+    pub data7: AnyPin<'a>,
+    pub cfg_data: AnyPin<'a>,
+    pub cfg_clk: AnyPin<'a>,
+    pub cfg_str: AnyPin<'a>,
+    pub lcd_dc: AnyPin<'a>,
+    pub lcd_wrx: AnyPin<'a>,
+    pub rmt: AnyPin<'a>,
+    // pub data0: GpioPin<6>,
+    // pub data1: GpioPin<7>,
+    // pub data2: GpioPin<4>,
+    // pub data3: GpioPin<5>,
+    // pub data4: GpioPin<2>,
+    // pub data5: GpioPin<3>,
+    // pub data6: GpioPin<8>,
+    // pub data7: GpioPin<1>,
+    // pub cfg_data: GpioPin<13>,
+    // pub cfg_clk: GpioPin<12>,
+    // pub cfg_str: GpioPin<0>,
+    // pub lcd_dc: GpioPin<40>,
+    // pub lcd_wrx: GpioPin<41>,
+    // pub rmt: GpioPin<38>,
 }
 
 pub(crate) struct ED047TC1<'a> {
@@ -113,21 +121,12 @@ pub(crate) struct ED047TC1<'a> {
 }
 
 impl<'a> ED047TC1<'a> {
-    pub(crate) fn new<CH>(
-        pins: PinConfig,
-        dma: impl Peripheral<P = CH> + 'a,
-        lcd_cam: impl Peripheral<P = peripherals::LCD_CAM> + 'a,
-        rmt: impl Peripheral<P = peripherals::RMT> + 'a,
-    ) -> crate::Result<Self>
-    where
-        CH: TxChannelFor<peripherals::LCD_CAM>,
-    {
-        // configure data pins
-        let tx_pins = i8080::TxEightBits::new(
-            pins.data0, pins.data1, pins.data2, pins.data3, pins.data4, pins.data5, pins.data6,
-            pins.data7,
-        );
-
+    pub(crate) fn new(
+        pins: PinConfig<'a>,
+        dma: impl TxChannelFor<peripherals::LCD_CAM<'a>>,
+        lcd_cam: peripherals::LCD_CAM<'a>,
+        rmt: peripherals::RMT<'a>,
+    ) -> crate::Result<Self> {
         // init lcd
         let lcd_cam = LcdCam::new(lcd_cam);
 
@@ -143,21 +142,27 @@ impl<'a> ED047TC1<'a> {
                 i8080::I8080::new(
                     lcd_cam.lcd,
                     dma,
-                    tx_pins,
-                    i8080::Config {
-                        frequency: 10.MHz(),
-                        cd_idle_edge: false,  // dc_idle_level
-                        cd_cmd_edge: true,    // dc_cmd_level
-                        cd_dummy_edge: false, // dc_dummy_level
-                        cd_data_edge: false,  // dc_data_level
-                        ..Default::default()
-                    },
+                    i8080::Config::default()
+                        .with_frequency(Rate::from_mhz(10))
+                        .with_cd_idle_edge(false)
+                        .with_cd_cmd_edge(true)
+                        .with_cd_dummy_edge(false)
+                        .with_cd_data_edge(false),
                 )
                 .map_err(crate::Error::I8080)?
-                .with_ctrl_pins(pins.lcd_dc, pins.lcd_wrx),
+                .with_data0(pins.data0)
+                .with_data1(pins.data1)
+                .with_data2(pins.data2)
+                .with_data3(pins.data3)
+                .with_data4(pins.data4)
+                .with_data5(pins.data5)
+                .with_data6(pins.data6)
+                .with_data7(pins.data7)
+                .with_dc(pins.lcd_dc)
+                .with_wrx(pins.lcd_wrx),
             ),
             cfg_writer,
-            rmt: rmt::Rmt::new(rmt),
+            rmt: rmt::Rmt::new(pins.rmt, rmt),
             dma_buf: Some(dma_buf),
         };
         Ok(ctrl)
@@ -201,11 +206,12 @@ impl<'a> ED047TC1<'a> {
 
         self.cfg_writer.config.stv = false;
         self.cfg_writer.write();
+        // self.rmt.pulse(100, 100, false)?;
 
         self.rmt.pulse(10000, 1000, false)?;
         self.cfg_writer.config.stv = true;
         self.cfg_writer.write();
-        // self.rmt.pulse(0, 100, true)?;
+
         self.rmt.pulse(10, 10, true)?;
         self.rmt.pulse(10, 10, true)?;
         self.rmt.pulse(10, 10, true)?;
@@ -273,11 +279,5 @@ impl<'a> ED047TC1<'a> {
 
 #[inline(always)]
 fn busy_delay(wait_cycles: u32) {
-    let target = cycles() + wait_cycles as u64;
-    while cycles() < target {}
-}
-
-#[inline(always)]
-fn cycles() -> u64 {
-    esp_hal::xtensa_lx::timer::get_cycle_count() as u64
+    esp_hal::xtensa_lx::timer::delay(wait_cycles)
 }
