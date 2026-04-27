@@ -7,17 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.1.0 - 2026-04-27
+
 ### Changed
 
+- Update `esp-hal` to `1.1.0`
+- Update `esp-alloc` to `0.10.0`
+- Update `esp-bootloader-esp-idf` to `0.5.0`
+- Update `esp-backtrace` to `0.19.0`
+- Update `esp-println` to `0.17.0`
+- RMT driver migrated to the 1.1.0 API: `configure_tx` now takes the config by reference and pin attachment moved to `Channel::with_pin()`; `SingleShotTxTransaction` renamed to `TxTransaction` (generic type argument dropped)
+- PSRAM is now initialised at runtime via `PsramConfig` (octal mode) passed to `esp_alloc::psram_allocator!`, replacing the removed `ESP_HAL_CONFIG_PSRAM_MODE` build-time env var
 - `Battery::DEFAULT_CORRECTION_FACTOR` changed from `1.144632` to `1.0` since esp-hal 1.0's `AdcCalCurve` calibration is accurate enough without additional correction
+- Implemented rotation support for the display
+
+### Added
+
+- Added `Error::RmtConfig` variant wrapping `esp_hal::rmt::ConfigError` (RMT configuration errors are now a separate type from `rmt::Error` in esp-hal 1.1.0)
+- Added `nb` dependency
+
+### Removed
+
+- Dropped the `psram` cargo feature on `esp-hal` (replaced by the runtime `Psram` driver in 1.1.0)
+- Removed `ESP_HAL_CONFIG_PSRAM_MODE` from `.cargo/config.toml`
 
 ### Fixed
 
 - Fixed `Battery::read()` panic due to `read_oneshot` returning `nb::Error::WouldBlock` by wrapping with `nb::block!()`
-
-### Added
-
-- Added `nb` dependency
 
 ## 1.0.0 - 2026-03-11
 

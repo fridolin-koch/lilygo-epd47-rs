@@ -26,7 +26,11 @@ fn main() -> ! {
     let peripherals = esp_hal::init(config);
 
     // Create PSRAM allocator
-    esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
+    let psram_config = esp_hal::psram::PsramConfig {
+        mode: esp_hal::psram::PsramMode::OctalSpi,
+        ..Default::default()
+    };
+    esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram, psram_config);
 
     let mut display = Display::new(
         pin_config!(peripherals),

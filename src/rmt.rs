@@ -2,7 +2,7 @@ use esp_hal::{
     gpio::Level,
     peripherals,
     rmt,
-    rmt::{Channel, PulseCode, SingleShotTxTransaction, Tx, TxChannelCreator},
+    rmt::{Channel, PulseCode, Tx, TxChannelCreator, TxTransaction},
     time::Rate,
     Blocking,
 };
@@ -25,8 +25,8 @@ impl<'a> Rmt<'a> {
             return Ok(());
         }
         let freq = Rate::from_mhz(80);
-        let rmt =
-            rmt::Rmt::new(unsafe { peripherals::RMT::steal() }, freq).map_err(crate::Error::Rmt)?;
+        let rmt = rmt::Rmt::new(unsafe { peripherals::RMT::steal() }, freq)
+            .map_err(crate::Error::RmtConfig)?;
         let config = rmt::TxChannelConfig::default()
             .with_clk_divider(8)
             .with_idle_output_level(Level::Low)
@@ -35,8 +35,9 @@ impl<'a> Rmt<'a> {
             .with_carrier_level(Level::Low);
         let tx_channel = rmt
             .channel1
-            .configure_tx(unsafe { peripherals::GPIO38::steal() }, config)
-            .map_err(crate::Error::Rmt)?;
+            .configure_tx(&config)
+            .map_err(crate::Error::RmtConfig)?
+            .with_pin(unsafe { peripherals::GPIO38::steal() });
         self.tx_channel = Some(tx_channel);
         Ok(())
     }
@@ -45,10 +46,12 @@ impl<'a> Rmt<'a> {
         &mut self,
         data: &'b [PulseCode],
         wait: bool,
-    ) -> Result<Option<SingleShotTxTransaction<'a, 'b, PulseCode>>, crate::Error> {
+    ) -> Result<Option<TxTransaction<'a, 'b>>, crate::Error> {
         self.ensure_channel()?;
         let tx_channel = self.tx_channel.take().ok_or(crate::Error::Unknown)?;
-        let tx = tx_channel.transmit(data).map_err(crate::Error::Rmt)?;
+        let tx = tx_channel
+            .transmit(data)
+            .map_err(|(err, _)| crate::Error::Rmt(err))?;
         if wait {
             // if false {
             self.tx_channel = Some(
@@ -64,7 +67,7 @@ impl<'a> Rmt<'a> {
 
     pub fn reclaim_channel<'b>(
         &mut self,
-        tx: SingleShotTxTransaction<'a, 'b, PulseCode>,
+        tx: TxTransaction<'a, 'b>,
     ) -> Result<(), crate::Error> {
         let channel = tx.wait().map_err(|(err, _)| crate::Error::Rmt(err))?;
         self.tx_channel = Some(channel);

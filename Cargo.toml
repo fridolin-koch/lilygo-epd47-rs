@@ -1,7 +1,7 @@
 [package]
 name = "lilygo-epd47"
 description = "Simple driver for the LilyGo T5 4.7 inch E-Ink Display (HW-Version V2.3 / ESP32S3)"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Frido Koch <info@fridokoch.de>"]
 edition = "2021"
 license = "GPL-3.0"
@@ -13,15 +13,15 @@ keywords = ["epd", "lilygo", "esp-hal", "ED047TC1", "embedded-graphics"]
 [dependencies]
 critical-section = "1.2.0"
 nb = "1"
-esp-hal = { version = "1.0.0", features = ["esp32s3","unstable","psram"] }
+esp-hal = { version = "1.1.0", features = ["esp32s3","unstable"] }
 embedded-graphics-core = { version = "0.4.0", optional = true }
-esp-alloc = "0.9.0"
-esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"] }
+esp-alloc = "0.10.0"
+esp-bootloader-esp-idf = { version = "0.5.0", features = ["esp32s3"] }
 log = { version = "0.4.28" }
 
 [dev-dependencies]
-esp-println = { version = "0.16.1", features = ["esp32s3", "log-04"] }
-esp-backtrace = { version = "0.18.1", features = [
+esp-println = { version = "0.17.0", features = ["esp32s3", "log-04"] }
+esp-backtrace = { version = "0.19.0", features = [
     "esp32s3",
     "panic-handler",
     "println",

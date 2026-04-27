@@ -35,8 +35,12 @@
 //! fn main() -> ! {
 //!     let peripherals = esp_hal::init(esp_hal::Config::default());
 //!     let delay = Delay::new();
-//!     // Create PSRAM allocator
-//!     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram);
+//!     // Create PSRAM allocator (octal mode for the LilyGo T5 V2.3)
+//!     let psram_config = esp_hal::psram::PsramConfig {
+//!         mode: esp_hal::psram::PsramMode::OctalSpi,
+//!         ..Default::default()
+//!     };
+//!     esp_alloc::psram_allocator!(peripherals.PSRAM, esp_hal::psram, psram_config);
 //!     // Initialise the display
 //!     let mut display = Display::new(
 //!         pin_config!(peripherals),
@@ -81,6 +85,8 @@ mod rmt;
 pub enum Error {
     /// Pass-through
     Rmt(esp_hal::rmt::Error),
+    /// Pass-through
+    RmtConfig(esp_hal::rmt::ConfigError),
     /// Pass-through
     Dma(esp_hal::dma::DmaError),
     /// Pass-through
