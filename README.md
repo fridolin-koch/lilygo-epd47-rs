@@ -25,10 +25,10 @@ possible. I give no guarantee that this is the correct usage of the hardware, us
 ## Usage
 
 1. Prepare your development requirement according to
-   this [guide](https://docs.esp-rs.org/book/installation/riscv-and-xtensa.html).
-2. Create a new project, I recommend using `cargo-generate` and
-   the [template](https://docs.esp-rs.org/book/writing-your-own-application/generate-project/index.html) provided
-   by `esp-rs` (i.e. `cargo generate esp-rs/esp-template`)
+   this [guide](https://docs.espressif.com/projects/rust/book/getting-started/toolchain.html).
+2. Create a new project, I recommend using `esp-generate` and
+   the [template](https://docs.espressif.com/projects/rust/book/getting-started/using-esp-generate.html) provided
+   by `esp-rs`.
 3. Use the following template for your application and adopt for your needs.
 
 ```rust
