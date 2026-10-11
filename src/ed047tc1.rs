@@ -1,6 +1,6 @@
 use esp_hal::{
     dma::DmaTxBuf,
-    dma_buffers,
+    dma_tx_buffer,
     gpio::{Level, Output, OutputConfig, OutputPin},
     lcd_cam::{
         lcd::{i8080, i8080::Command},
@@ -137,9 +137,7 @@ impl<'a> ED047TC1<'a> {
         let mut cfg_writer = ConfigWriter::new(pins.cfg_data, pins.cfg_clk, pins.cfg_str);
         cfg_writer.write();
 
-        let (_, _, tx_buffer, tx_descriptors) = dma_buffers!(0, DMA_BUFFER_SIZE);
-        let dma_buf =
-            Some(DmaTxBuf::new(tx_descriptors, tx_buffer).map_err(crate::Error::DmaBuffer)?);
+        let dma_buf = Some(dma_tx_buffer!(DMA_BUFFER_SIZE).map_err(crate::Error::DmaBuffer)?);
 
         let config = i8080::Config::default()
             .with_frequency(Rate::from_mhz(10))

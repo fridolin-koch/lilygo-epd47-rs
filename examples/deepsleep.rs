@@ -4,7 +4,7 @@
 extern crate alloc;
 extern crate lilygo_epd47;
 
-use core::{format_args, time::Duration};
+use core::format_args;
 
 use embedded_graphics::prelude::*;
 use embedded_graphics_core::{
@@ -18,12 +18,12 @@ use esp_hal::{
     ram,
     rtc_cntl::{
         reset_reason,
-        sleep::{RtcSleepConfig, TimerWakeupSource},
+        sleep::{LowPower, RtcSleepConfig},
         wakeup_cause,
-        Rtc,
         SocResetReason,
     },
     system::Cpu,
+    time::{Duration, Instant},
 };
 use lilygo_epd47::{pin_config, Display, DrawMode};
 use u8g2_fonts::FontRenderer;
@@ -68,7 +68,7 @@ fn main() -> ! {
     .expect("to initialize display");
 
     let delay = Delay::new();
-    let mut rtc = Rtc::new(peripherals.LPWR);
+    let mut low_power = LowPower::new(peripherals.LPWR);
 
     let reason = reset_reason(Cpu::ProCpu).unwrap_or(SocResetReason::ChipPowerOn);
     let wake_reason = wakeup_cause();
@@ -134,8 +134,6 @@ fn main() -> ! {
     rtc_cfg.set_rtc_fastmem_pd_en(false);
     rtc_cfg.set_rtc_slowmem_pd_en(false);
 
-    let timer = TimerWakeupSource::new(Duration::from_secs(30));
-    rtc.sleep(&rtc_cfg, &[&timer]);
-
-    loop {}
+    low_power.set_wakeup_deadline(Instant::now() + Duration::from_secs(30));
+    low_power.sleep_deep(rtc_cfg);
 }

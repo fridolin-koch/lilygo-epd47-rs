@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- Update `esp-hal` to `1.2.2`
+- Update `esp-alloc` to `0.11.0` (now requires the `esp32s3` chip feature)
+- Update `esp-bootloader-esp-idf` to `0.6.0`
+- Update `esp-backtrace` to `0.20.0`
+- Update `esp-println` to `0.18.0`
+- DMA TX buffer is now created with `dma_tx_buffer!`, since `DmaTxBuf::new` takes `DmaAlignedMut` buffers in esp-hal 1.2
+- `deepsleep` example migrated to the new `LowPower` sleep driver (`set_wakeup_deadline` + `sleep_deep`), replacing the removed `Rtc::sleep`/`TimerWakeupSource` API
+
 ## 1.1.0 - 2026-04-27
 
 ### Changed
