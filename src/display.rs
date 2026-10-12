@@ -139,8 +139,7 @@ impl<'a> Display<'a> {
             self.framebuffer[index] = (value & 0xF0) | (color & 0x0F);
         }
         // taint row
-        let tainted_index = y as usize / TAINTED_ROWS_SIZE;
-        self.tainted_rows[tainted_index] |= 1 << ((y - (tainted_index as u16 * 8)) % 8);
+        self.tainted_rows[y as usize / 8] |= 1 << (y % 8);
         Ok(())
     }
 
@@ -268,8 +267,7 @@ impl<'a> Display<'a> {
     }
 
     fn is_tainted(&self, row: u16) -> bool {
-        let index = row as usize / TAINTED_ROWS_SIZE;
-        self.tainted_rows[index] & (1 << ((row - (index as u16 * 8)) % 8)) != 0
+        self.tainted_rows[row as usize / 8] & (1 << (row % 8)) != 0
     }
 
     const DRAW_IMAGE_FRAME_COUNT: usize = 15;
@@ -283,11 +281,14 @@ impl<'a> Display<'a> {
             // update lut
             update_lut(&mut lut, k, mode);
             // start draw
+            self.skipping = 0;
             self.epd.frame_start()?;
             // build line
             for y in 0..Self::HEIGHT {
                 if !self.is_tainted(y) {
-                    self.epd.skip()?;
+                    // blanks the source drivers before skipping, otherwise the
+                    // last drawn row keeps being driven into the rows below
+                    self.row_skip(mode.contrast_cycles()[k])?;
                     continue;
                 }
                 let start = y as usize * LINE_BYTES_4BPP;
@@ -295,7 +296,7 @@ impl<'a> Display<'a> {
                 // draw
                 let buf = prepare_dma_buffer(&self.framebuffer[start..end], &lut);
                 self.epd.set_buffer(buf.as_slice())?;
-                self.epd.output_row(mode.contrast_cycles()[k])?;
+                self.row_write(mode.contrast_cycles()[k])?;
             }
             if self.skipping == 0 {
                 self.row_write(mode.contrast_cycles()[k])?;
