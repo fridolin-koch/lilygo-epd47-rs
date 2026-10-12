@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DMA TX buffer is now created with `dma_tx_buffer!`, since `DmaTxBuf::new` takes `DmaAlignedMut` buffers in esp-hal 1.2
 - `deepsleep` example migrated to the new `LowPower` sleep driver (`set_wakeup_deadline` + `sleep_deep`), replacing the removed `Rtc::sleep`/`TimerWakeupSource` API
 
+### Fixed
+
+- Partial `flush()` drove whole 68-row blocks instead of only the rows that were drawn to, because the tainted-row bitmap was indexed by `y / 68` instead of `y / 8`
+- Partial `flush()` no longer smears the last drawn row into the rows below it (a vertical line down to the bottom edge, see #12): the source drivers are now blanked before unchanged rows are skipped
+
 ## 1.1.0 - 2026-04-27
 
 ### Changed
